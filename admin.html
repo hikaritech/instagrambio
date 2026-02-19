@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Admin Panel • Velvet Glow Beauty</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #120a05;
+  --bg2:       #1e1008;
+  --card:      #261508;
+  --card2:     #301b0a;
+  --border:    rgba(201,169,110,0.15);
+  --border-hi: rgba(201,169,110,0.45);
+  --gold:      #c9a96e;
+  --gold-lt:   #e8c98a;
+  --brown-mid: #5c3d2e;
+  --brown-warm:#8b5e3c;
+  --cream:     #f5ede4;
+  --muted:     #8a6a54;
+  --danger:    #b94040;
+  --danger-lt: #e05555;
+  --success:   #5a9e6f;
+  --text:      #e8d5c0;
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body{
+  font-family:'DM Sans',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+}
+
+/* noise overlay */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:0;
+}
+
+/* ── LAYOUT ─────────────────────────────────── */
+.shell{max-width:780px;margin:0 auto;padding:0 16px 60px;position:relative;z-index:1;}
+
+/* ── TOPBAR ─────────────────────────────────── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 0 0;
+  border-bottom:1px solid var(--border);
+  margin-bottom:24px;
+  padding-bottom:16px;
+}
+.topbar-brand{display:flex;align-items:center;gap:10px;}
+.topbar-icon{
+  width:36px;height:36px;border-radius:10px;
+  background:linear-gradient(135deg,var(--brown-mid),var(--brown-warm));
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+}
+.topbar-title{font-family:'Playfair Display',serif;font-size:16px;color:var(--cream);}
+.topbar-sub{font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;}
+
+.btn-preview{
+  display:flex;align-items:center;gap:6px;
+  background:rgba(201,169,110,0.1);
+  border:1px solid var(--border-hi);
+  border-radius:10px;padding:7px 14px;
+  color:var(--gold);font-size:12px;font-weight:500;
+  cursor:pointer;text-decoration:none;
+  transition:background .2s;
+}
+.btn-preview:hover{background:rgba(201,169,110,0.2);}
+
+/* ── TABS ───────────────────────────────────── */
+.tabs{display:flex;gap:4px;margin-bottom:24px;background:var(--card);border-radius:14px;padding:4px;}
+.tab{
+  flex:1;padding:10px;border-radius:10px;border:none;
+  background:transparent;color:var(--muted);
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;
+  cursor:pointer;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.tab.active{background:var(--card2);color:var(--gold);box-shadow:0 2px 12px rgba(0,0,0,.3);}
+.tab:hover:not(.active){color:var(--text);}
+
+/* ── PANEL ──────────────────────────────────── */
+.panel{display:none;}
+.panel.active{display:block;animation:fadeIn .3s ease;}
+
+/* ── SECTION HEADER ─────────────────────────── */
+.sec-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;
+}
+.sec-title{font-family:'Playfair Display',serif;font-size:18px;color:var(--cream);font-style:italic;}
+.sec-count{font-size:11px;color:var(--muted);background:var(--card);border:1px solid var(--border);border-radius:20px;padding:3px 10px;margin-left:8px;}
+
+/* ── BUTTONS ─────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  border:none;border-radius:10px;padding:9px 16px;
+  font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;
+  cursor:pointer;transition:all .2s;
+}
+.btn-gold{background:var(--gold);color:#1a0e08;}
+.btn-gold:hover{background:var(--gold-lt);}
+.btn-outline{background:transparent;border:1px solid var(--border-hi);color:var(--gold);}
+.btn-outline:hover{background:rgba(201,169,110,0.1);}
+.btn-danger{background:rgba(185,64,64,0.15);border:1px solid rgba(185,64,64,0.3);color:var(--danger-lt);}
+.btn-danger:hover{background:rgba(185,64,64,0.3);}
+.btn-sm{padding:6px 10px;font-size:11px;border-radius:8px;}
+.btn-icon{width:32px;height:32px;padding:0;border-radius:8px;justify-content:center;}
+
+/* ── PRODUCT LIST ────────────────────────────── */
+.product-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+
+.prod-row{
+  background:var(--card);border:1px solid var(--border);border-radius:16px;
+  padding:14px 16px;display:flex;align-items:center;gap:14px;
+  transition:border-color .2s;
+}
+.prod-row:hover{border-color:var(--border-hi);}
+
+.prod-num{
+  font-family:'Playfair Display',serif;font-size:11px;color:var(--gold);
+  background:var(--card2);border:1px solid var(--border);border-radius:7px;
+  padding:2px 7px;white-space:nowrap;
+}
+
+.prod-thumb{
+  width:46px;height:46px;border-radius:10px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--brown-mid),var(--brown-warm));
+  display:flex;align-items:center;justify-content:center;font-size:22px;
+  overflow:hidden;
+}
+.prod-thumb img{width:100%;height:100%;object-fit:cover;}
+
+.prod-meta{flex:1;min-width:0;}
+.prod-name{font-size:14px;color:var(--cream);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.prod-detail{font-size:11px;color:var(--muted);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;}
+
+.badge-sm{
+  display:inline-block;border-radius:5px;padding:1px 6px;
+  font-size:9px;font-weight:700;letter-spacing:.6px;
+}
+.badge-sm.BESTSELLER{background:var(--gold);color:#1a0e08;}
+.badge-sm.NEW{background:var(--gold-lt);color:#1a0e08;}
+.badge-sm.LIMITED{background:var(--danger);color:#fff;}
+.badge-sm.unavail{background:rgba(138,106,84,.2);color:var(--muted);border:1px solid var(--border);}
+
+.prod-actions{display:flex;gap:6px;flex-shrink:0;}
+
+/* ── MODAL OVERLAY ───────────────────────────── */
+.overlay{
+  position:fixed;inset:0;background:rgba(12,6,2,.85);
+  backdrop-filter:blur(6px);z-index:100;
+  display:none;align-items:flex-end;justify-content:center;
+  padding:0;
+}
+.overlay.open{display:flex;animation:fadeIn .2s ease;}
+
+.modal{
+  background:var(--card);
+  border:1px solid var(--border-hi);
+  border-radius:24px 24px 0 0;
+  width:100%;max-width:780px;
+  max-height:92vh;overflow-y:auto;
+  padding:24px 20px 40px;
+  animation:slideUp .3s ease;
+}
+
+.modal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:24px;
+  padding-bottom:16px;
+  border-bottom:1px solid var(--border);
+}
+.modal-title{font-family:'Playfair Display',serif;font-size:18px;color:var(--cream);font-style:italic;}
+.btn-close{
+  width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.05);
+  border:1px solid var(--border);color:var(--muted);
+  font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all .2s;
+}
+.btn-close:hover{background:rgba(255,255,255,.1);color:var(--text);}
+
+/* ── FORM ────────────────────────────────────── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-full{grid-column:span 2;}
+
+.field{display:flex;flex-direction:column;gap:6px;}
+.field label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;font-weight:500;}
+
+.field input,
+.field select,
+.field textarea{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px 14px;
+  color:var(--text);
+  font-family:'DM Sans',sans-serif;
+  font-size:13px;
+  outline:none;
+  transition:border-color .2s;
+  width:100%;
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus{border-color:var(--border-hi);}
+.field input::placeholder,
+.field textarea::placeholder{color:var(--muted);}
+.field select option{background:var(--card2);color:var(--text);}
+.field textarea{resize:vertical;min-height:70px;}
+
+/* Toggle */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.toggle-label{font-size:13px;color:var(--text);}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-track{
+  position:absolute;inset:0;background:rgba(255,255,255,.1);
+  border-radius:12px;border:1px solid var(--border);
+  transition:all .3s;cursor:pointer;
+}
+.toggle-track::after{
+  content:'';position:absolute;top:3px;left:3px;
+  width:16px;height:16px;background:var(--muted);
+  border-radius:50%;transition:all .3s;
+}
+.toggle input:checked + .toggle-track{background:var(--gold);border-color:var(--gold);}
+.toggle input:checked + .toggle-track::after{transform:translateX(20px);background:#1a0e08;}
+
+/* emoji preview */
+.emoji-preview{
+  width:54px;height:54px;border-radius:12px;flex-shrink:0;
+  background:linear-gradient(135deg,var(--brown-mid),var(--brown-warm));
+  display:flex;align-items:center;justify-content:center;font-size:26px;
+  border:1px solid var(--border);
+}
+
+.preview-row{display:flex;gap:12px;align-items:center;}
+.preview-row .field{flex:1;}
+
+.form-actions{
+  display:flex;gap:10px;justify-content:flex-end;
+  margin-top:24px;padding-top:16px;border-top:1px solid var(--border);
+}
+
+/* ── DELETE CONFIRM ──────────────────────────── */
+.confirm-modal{
+  background:var(--card);border:1px solid rgba(185,64,64,.3);
+  border-radius:20px;padding:24px;width:calc(100% - 32px);max-width:360px;
+  text-align:center;animation:scaleIn .2s ease;
+}
+.confirm-icon{font-size:36px;margin-bottom:12px;}
+.confirm-title{font-family:'Playfair Display',serif;font-size:16px;color:var(--cream);margin-bottom:6px;}
+.confirm-desc{font-size:12px;color:var(--muted);margin-bottom:20px;}
+.confirm-btns{display:flex;gap:10px;justify-content:center;}
+
+/* ── TOAST ───────────────────────────────────── */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(60px);
+  background:var(--card2);border:1px solid var(--border-hi);
+  border-radius:12px;padding:10px 18px;
+  font-size:13px;color:var(--gold);
+  z-index:999;transition:transform .3s ease;white-space:nowrap;
+  display:flex;align-items:center;gap:8px;
+}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+/* ── PROFILE FORM ────────────────────────────── */
+.profile-card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:20px;padding:22px;margin-bottom:16px;
+}
+.profile-card-title{
+  font-family:'Playfair Display',serif;font-size:14px;color:var(--gold);
+  font-style:italic;margin-bottom:16px;
+  padding-bottom:10px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;
+}
+
+/* ── EXPORT BOX ──────────────────────────────── */
+.export-box{
+  background:var(--card2);border:1px solid var(--border);
+  border-radius:14px;padding:16px;margin-top:20px;
+}
+.export-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px;}
+.export-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+.stats-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+
+/* ── EMPTY ───────────────────────────────────── */
+.empty-msg{
+  text-align:center;padding:40px 20px;
+  font-family:'Playfair Display',serif;font-style:italic;
+  font-size:14px;color:var(--muted);
+  background:var(--card);border:1px dashed var(--border);border-radius:16px;
+}
+
+/* ── DIVIDER ─────────────────────────────────── */
+.divider{height:1px;background:var(--border);margin:20px 0;}
+
+/* ── ANIMS ───────────────────────────────────── */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes scaleIn{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+
+/* ── SCROLLBAR ───────────────────────────────── */
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:4px;}
+
+@media(max-width:500px){
+  .form-grid{grid-template-columns:1fr;}
+  .form-full{grid-column:span 1;}
+  .stats-grid{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-icon">⚙️</div>
+      <div>
+        <div class="topbar-title">Admin Panel</div>
+        <div class="topbar-sub">Velvet Glow Beauty</div>
+      </div>
+    </div>
+    <a class="btn-preview" href="linkbio.html" target="_blank">
+      👁 Preview Bio
+    </a>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('products')">💄 Produk</button>
+    <button class="tab" onclick="switchTab('profile')">🏪 Profile Toko</button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PANEL: PRODUK
+  ════════════════════════════════════════════ -->
+  <div class="panel active" id="panel-products">
+
+    <div class="sec-header">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="sec-title">Daftar Produk</span>
+        <span class="sec-count" id="prodCount">0 item</span>
+      </div>
+      <button class="btn btn-gold" onclick="openAddProduct()">＋ Tambah</button>
+    </div>
+
+    <div class="product-list" id="productList">
+      <div class="empty-msg">Belum ada produk. Klik "Tambah" untuk mulai.</div>
+    </div>
+
+    <div class="export-box">
+      <div class="export-label">⬇ Export / Copy Data</div>
+      <div class="export-actions">
+        <button class="btn btn-outline btn-sm" onclick="copyJSON()">📋 Copy JSON</button>
+        <button class="btn btn-outline btn-sm" onclick="downloadJSON()">💾 Download JSON</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PANEL: PROFILE
+  ════════════════════════════════════════════ -->
+  <div class="panel" id="panel-profile">
+
+    <div class="sec-header">
+      <span class="sec-title">Profile Toko</span>
+    </div>
+
+    <!-- Info Umum -->
+    <div class="profile-card">
+      <div class="profile-card-title">🏪 Info Umum</div>
+      <div class="form-grid">
+        <div class="field form-full">
+          <label>Nama Toko</label>
+          <input type="text" id="p_name" placeholder="Velvet Glow Beauty">
+        </div>
+        <div class="field form-full">
+          <label>Tagline</label>
+          <input type="text" id="p_tagline" placeholder="Authentic Luxury Cosmetics">
+        </div>
+        <div class="field form-full">
+          <label>Nomor WhatsApp <span style="color:var(--muted);font-size:10px">(format: 628xxx)</span></label>
+          <input type="text" id="p_wa" placeholder="6281234567890">
+        </div>
+      </div>
+    </div>
+
+    <!-- Avatar -->
+    <div class="profile-card">
+      <div class="profile-card-title">🖼️ Avatar Toko</div>
+      <div class="field">
+        <label>Upload Avatar <span style="color:var(--muted);font-size:10px">(akan disimpan sebagai base64)</span></label>
+        <input type="file" id="p_avatar" accept="image/*" onchange="handleAvatarUpload(event)">
+        <div id="avatarPreview" style="margin-top:10px;text-align:center;"></div>
+      </div>
+    </div>
+
+    <!-- Sosial Media -->
+    <div class="profile-card">
+      <div class="profile-card-title">🔗 Sosial Media & Marketplace</div>
+      <div class="form-grid">
+        <div class="field">
+          <label>📸 Instagram</label>
+          <input type="url" id="p_instagram" placeholder="https://instagram.com/...">
+        </div>
+        <div class="field">
+          <label>🎵 TikTok</label>
+          <input type="url" id="p_tiktok" placeholder="https://tiktok.com/...">
+        </div>
+        <div class="field">
+          <label>🛍️ Shopee</label>
+          <input type="url" id="p_shopee" placeholder="https://shopee.co.id/...">
+        </div>
+      </div>
+    </div>
+
+    <!-- Kategori -->
+    <div class="profile-card">
+      <div class="profile-card-title">🏷️ Kategori Produk</div>
+      <div id="categoriesList"></div>
+      <button class="btn btn-outline btn-sm" onclick="addCategory()" style="margin-top:10px;">＋ Tambah Kategori</button>
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
+      <button class="btn btn-outline" onclick="loadProfile()">↺ Reset</button>
+      <button class="btn btn-gold" onclick="saveProfile()">💾 Simpan Profile</button>
+    </div>
+
+    <div class="export-box">
+      <div class="export-label">⬇ Export Semua Data</div>
+      <div class="export-actions">
+        <button class="btn btn-outline btn-sm" onclick="copyJSON()">📋 Copy JSON</button>
+        <button class="btn btn-outline btn-sm" onclick="downloadJSON()">💾 Download JSON</button>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- /shell -->
+
+<!-- ═══════════════════════════════════════════
+     MODAL: ADD / EDIT PRODUCT
+════════════════════════════════════════════ -->
+<div class="overlay" id="productOverlay" onclick="closeOverlayClick(event)">
+  <div class="modal" id="productModal">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">Tambah Produk</div>
+      <button class="btn-close" onclick="closeProductModal()">✕</button>
+    </div>
+
+    <input type="hidden" id="editId">
+
+    <div class="form-grid">
+      <!-- Emoji + Nama -->
+      <div class="field form-full">
+        <label>Nama Produk</label>
+        <div class="preview-row">
+          <div class="emoji-preview" id="emojiPreview">💄</div>
+          <div class="field" style="flex:1;margin:0;">
+            <input type="text" id="f_name" placeholder="Nama produk...">
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Emoji Thumbnail</label>
+        <input type="text" id="f_emoji" placeholder="💄" oninput="updateEmojiPreview()" maxlength="4">
+      </div>
+
+      <div class="field form-full">
+        <label>Upload Gambar <span style="color:var(--muted);font-size:9px">(opsional, disimpan base64)</span></label>
+        <input type="file" id="f_image" accept="image/*" onchange="handleProductImageUpload(event)">
+        <input type="hidden" id="f_image_data">
+      </div>
+
+      <div class="field">
+        <label>Kategori</label>
+        <select id="f_category"></select>
+      </div>
+
+      <div class="field">
+        <label>Harga (Rp)</label>
+        <input type="number" id="f_price" placeholder="89000" min="0">
+      </div>
+
+      <div class="field">
+        <label>Badge</label>
+        <select id="f_badge">
+          <option value="">— Tidak ada —</option>
+          <option value="BESTSELLER">BESTSELLER</option>
+          <option value="NEW">NEW</option>
+          <option value="LIMITED">LIMITED</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Link Produk <span style="color:var(--muted);font-size:9px">(opsional)</span></label>
+        <input type="url" id="f_link" placeholder="https://...">
+      </div>
+
+      <div class="field form-full">
+        <label>Ketersediaan</label>
+        <div class="toggle-row">
+          <span class="toggle-label">Produk tersedia untuk dipesan</span>
+          <label class="toggle">
+            <input type="checkbox" id="f_available" checked>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeProductModal()">Batal</button>
+      <button class="btn btn-gold" onclick="saveProduct()">💾 Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MODAL: CONFIRM DELETE
+════════════════════════════════════════════ -->
+<div class="overlay" id="deleteOverlay" onclick="closeDeleteOverlayClick(event)" style="align-items:center;">
+  <div class="confirm-modal">
+    <div class="confirm-icon">🗑️</div>
+    <div class="confirm-title">Hapus Produk?</div>
+    <div class="confirm-desc" id="deleteDesc">Produk ini akan dihapus permanen.</div>
+    <div class="confirm-btns">
+      <button class="btn btn-outline btn-sm" onclick="closeDeleteModal()">Batal</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmDelete()">Ya, Hapus</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">✓ Tersimpan</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// DEFAULT DATA
+// ══════════════════════════════════════════════════════════════
+const DEFAULT_DATA = {
+  store: {
+    name: "Velvet Glow Beauty",
+    tagline: "Authentic Luxury Cosmetics",
+    whatsapp: "6281234567890",
+    avatar: "",
+    socials: {
+      instagram: "https://instagram.com/velvetglowbeauty",
+      tiktok: "https://tiktok.com/@velvetglowbeauty",
+      shopee: "https://shopee.co.id/velvetglowbeauty"
+    }
+  },
+  categories: [{ id: "lipstick", label: "Koleksi Lipstick" }],
+  products: [
+    { id:1, name:"Velvet Red Matte",  category:"lipstick", price:89000, emoji:"🔴", image:"", badge:"BESTSELLER", available:true, link:""  },
+    { id:2, name:"Nude Rose Glam",    category:"lipstick", price:95000, emoji:"🌸", image:"", badge:"NEW",        available:true, link:""  },
+    { id:3, name:"Berry Wine",        category:"lipstick", price:89000, emoji:"🍷", image:"", badge:"",           available:true, link:""  },
+    { id:4, name:"Peach Coral",       category:"lipstick", price:85000, emoji:"🍑", image:"", badge:"",           available:true, link:""  },
+    { id:5, name:"Terracotta Earth",  category:"lipstick", price:92000, emoji:"🤎", image:"", badge:"LIMITED",    available:true, link:""  },
+    { id:6, name:"Baby Doll Pink",    category:"lipstick", price:88000, emoji:"💗", image:"", badge:"",           available:false, link:"" }
+  ]
+};
+
+// ══════════════════════════════════════════════════════════════
+// STATE (localStorage)
+// ══════════════════════════════════════════════════════════════
+function loadData() {
+  try {
+    const raw = localStorage.getItem('vgb_data');
+    return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_DATA));
+  } catch { return JSON.parse(JSON.stringify(DEFAULT_DATA)); }
+}
+
+function saveData(data) {
+  localStorage.setItem('vgb_data', JSON.stringify(data));
+}
+
+let DATA = loadData();
+
+// ══════════════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════════════
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', (i===0 && tab==='products') || (i===1 && tab==='profile'));
+  });
+  document.getElementById('panel-products').classList.toggle('active', tab==='products');
+  document.getElementById('panel-profile').classList.toggle('active', tab==='profile');
+}
+
+// ══════════════════════════════════════════════════════════════
+// PRODUCTS — RENDER
+// ══════════════════════════════════════════════════════════════
+function renderProducts() {
+  const list = document.getElementById('productList');
+  const count = document.getElementById('prodCount');
+  const products = DATA.products;
+
+  count.textContent = products.length + ' item';
+
+  if (!products.length) {
+    list.innerHTML = '<div class="empty-msg">Belum ada produk. Klik "Tambah" untuk mulai.</div>';
+    return;
+  }
+
+  list.innerHTML = products.map(p => `
+    <div class="prod-row" id="row-${p.id}">
+      <div class="prod-num">#${String(p.id).padStart(2,'0')}</div>
+      <div class="prod-thumb">
+        ${p.image ? `<img src="${p.image}" alt="">` : p.emoji}
+      </div>
+      <div class="prod-meta">
+        <div class="prod-name">${esc(p.name)}</div>
+        <div class="prod-detail">
+          <span>${p.type}</span>
+          <span>${fmtPrice(p.price)}</span>
+          ${p.badge ? `<span class="badge-sm ${p.badge}">${p.badge}</span>` : ''}
+          ${!p.available ? `<span class="badge-sm unavail">HABIS</span>` : ''}
+        </div>
+      </div>
+      <div class="prod-actions">
+        <button class="btn btn-outline btn-sm btn-icon" title="Edit" onclick="openEditProduct(${p.id})">✏️</button>
+        <button class="btn btn-danger btn-sm btn-icon" title="Hapus" onclick="openDeleteModal(${p.id})">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+// PRODUCTS — MODAL ADD / EDIT
+// ══════════════════════════════════════════════════════════════
+function openAddProduct() {
+  document.getElementById('modalTitle').textContent = 'Tambah Produk';
+  document.getElementById('editId').value = '';
+  document.getElementById('f_name').value = '';
+  document.getElementById('f_emoji').value = '💄';
+  document.getElementById('f_image').value = '';
+  document.getElementById('f_image_data').value = '';
+  document.getElementById('f_category').value = DATA.categories[0]?.id || 'lipstick';
+  document.getElementById('f_price').value = '';
+  document.getElementById('f_badge').value = '';
+  document.getElementById('f_link').value = '';
+  document.getElementById('f_available').checked = true;
+  document.getElementById('emojiPreview').textContent = '💄';
+  updateCategorySelects();
+  openOverlay('productOverlay');
+}
+
+function openEditProduct(id) {
+  const p = DATA.products.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('modalTitle').textContent = 'Edit Produk';
+  document.getElementById('editId').value = p.id;
+  document.getElementById('f_name').value = p.name;
+  document.getElementById('f_emoji').value = p.emoji;
+  document.getElementById('f_image').value = '';
+  document.getElementById('f_image_data').value = p.image || '';
+  document.getElementById('f_category').value = p.category;
+  document.getElementById('f_price').value = p.price;
+  document.getElementById('f_badge').value = p.badge || '';
+  document.getElementById('f_link').value = p.link || '';
+  document.getElementById('f_available').checked = p.available;
+  document.getElementById('emojiPreview').textContent = p.emoji;
+  updateCategorySelects();
+  openOverlay('productOverlay');
+}
+
+function updateEmojiPreview() {
+  const v = document.getElementById('f_emoji').value.trim();
+  document.getElementById('emojiPreview').textContent = v || '💄';
+}
+
+function saveProduct() {
+  const name = document.getElementById('f_name').value.trim();
+  const price = parseInt(document.getElementById('f_price').value);
+  if (!name) { showToast('⚠️ Nama produk wajib diisi'); return; }
+  if (!price || price < 0) { showToast('⚠️ Harga tidak valid'); return; }
+
+  const editId = document.getElementById('editId').value;
+  const product = {
+    name,
+    emoji: document.getElementById('f_emoji').value.trim() || '💄',
+    image: document.getElementById('f_image_data').value.trim(),
+    category: document.getElementById('f_category').value,
+    price,
+    badge: document.getElementById('f_badge').value,
+    link: document.getElementById('f_link').value.trim(),
+    available: document.getElementById('f_available').checked
+  };
+
+  if (editId) {
+    const idx = DATA.products.findIndex(p => p.id === parseInt(editId));
+    if (idx > -1) DATA.products[idx] = { ...DATA.products[idx], ...product };
+  } else {
+    const maxId = DATA.products.reduce((m,p) => Math.max(m, p.id), 0);
+    DATA.products.push({ id: maxId + 1, ...product });
+  }
+
+  saveData(DATA);
+  renderProducts();
+  closeProductModal();
+  showToast(editId ? '✓ Produk diperbarui' : '✓ Produk ditambahkan');
+}
+
+function closeProductModal() {
+  document.getElementById('productOverlay').classList.remove('open');
+}
+
+// ══════════════════════════════════════════════════════════════
+// PRODUCTS — DELETE
+// ══════════════════════════════════════════════════════════════
+let pendingDeleteId = null;
+
+function openDeleteModal(id) {
+  const p = DATA.products.find(x => x.id === id);
+  if (!p) return;
+  pendingDeleteId = id;
+  document.getElementById('deleteDesc').textContent = `"${p.name}" akan dihapus permanen.`;
+  openOverlay('deleteOverlay');
+}
+
+function confirmDelete() {
+  DATA.products = DATA.products.filter(p => p.id !== pendingDeleteId);
+  saveData(DATA);
+  renderProducts();
+  closeDeleteModal();
+  showToast('🗑️ Produk dihapus');
+}
+
+function closeDeleteModal() {
+  document.getElementById('deleteOverlay').classList.remove('open');
+  pendingDeleteId = null;
+}
+
+function closeDeleteOverlayClick(e) {
+  if (e.target.id === 'deleteOverlay') closeDeleteModal();
+}
+
+// ══════════════════════════════════════════════════════════════
+// PROFILE — LOAD & SAVE
+// ══════════════════════════════════════════════════════════════
+function loadProfile() {
+  const s = DATA.store;
+  document.getElementById('p_name').value      = s.name || '';
+  document.getElementById('p_tagline').value   = s.tagline || '';
+  document.getElementById('p_wa').value        = s.whatsapp || '';
+  document.getElementById('p_instagram').value = s.socials?.instagram || '';
+  document.getElementById('p_tiktok').value    = s.socials?.tiktok || '';
+  document.getElementById('p_shopee').value    = s.socials?.shopee || '';
+  
+  const preview = document.getElementById('avatarPreview');
+  if (s.avatar) {
+    preview.innerHTML = `<img src="${s.avatar}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid var(--border-hi);">`;
+  } else {
+    preview.innerHTML = '';
+  }
+  
+  renderCategories();
+}
+
+function renderCategories() {
+  const list = document.getElementById('categoriesList');
+  list.innerHTML = DATA.categories.map((c, i) => `
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <input type="text" value="${c.label}" onchange="updateCategory('${c.id}', this.value)" style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:12px;">
+      <button class="btn btn-danger btn-sm btn-icon" onclick="deleteCategory('${c.id}')" title="Hapus">🗑️</button>
+    </div>
+  `).join('');
+  updateCategorySelects();
+}
+
+function addCategory() {
+  const id = 'cat_' + Date.now();
+  const label = prompt('Nama kategori baru:');
+  if (!label || !label.trim()) return;
+  DATA.categories.push({ id, label: label.trim() });
+  saveData(DATA);
+  renderCategories();
+  showToast('✓ Kategori ditambahkan');
+}
+
+function updateCategory(id, newLabel) {
+  const cat = DATA.categories.find(c => c.id === id);
+  if (cat) {
+    cat.label = newLabel.trim() || cat.label;
+    saveData(DATA);
+    showToast('✓ Kategori diupdate');
+  }
+}
+
+function deleteCategory(id) {
+  if (DATA.categories.length <= 1) {
+    showToast('⚠️ Minimal 1 kategori harus ada');
+    return;
+  }
+  if (!confirm('Hapus kategori ini?')) return;
+  DATA.categories = DATA.categories.filter(c => c.id !== id);
+  DATA.products.forEach(p => { if (p.category === id) p.category = DATA.categories[0].id; });
+  saveData(DATA);
+  renderCategories();
+  renderProducts();
+  showToast('🗑️ Kategori dihapus');
+}
+
+function updateCategorySelects() {
+  const sel = document.getElementById('f_category');
+  sel.innerHTML = DATA.categories.map(c => `<option value="${c.id}">${c.label}</option>`).join('');
+}
+
+function handleAvatarUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    DATA.store.avatar = reader.result;
+    saveData(DATA);
+    loadProfile();
+    showToast('✓ Avatar diupload');
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleProductImageUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    document.getElementById('f_image_data').value = reader.result;
+    showToast('✓ Gambar siap disimpan');
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveProfile() {
+  DATA.store.name     = document.getElementById('p_name').value.trim() || 'Toko Saya';
+  DATA.store.tagline  = document.getElementById('p_tagline').value.trim();
+  DATA.store.whatsapp = document.getElementById('p_wa').value.trim();
+  DATA.store.socials = {
+    instagram: document.getElementById('p_instagram').value.trim(),
+    tiktok:    document.getElementById('p_tiktok').value.trim(),
+    shopee:    document.getElementById('p_shopee').value.trim()
+  };
+
+  saveData(DATA);
+  showToast('✓ Profile disimpan');
+}
+
+// ══════════════════════════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════════════════════════
+function getJSON() {
+  return JSON.stringify(DATA, null, 2);
+}
+
+function copyJSON() {
+  navigator.clipboard.writeText(getJSON()).then(() => showToast('📋 JSON disalin!'));
+}
+
+function downloadJSON() {
+  const blob = new Blob([getJSON()], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'products.json';
+  a.click();
+  showToast('💾 File diunduh');
+}
+
+// ══════════════════════════════════════════════════════════════
+// OVERLAY HELPERS
+// ══════════════════════════════════════════════════════════════
+function openOverlay(id) {
+  document.getElementById(id).classList.add('open');
+}
+
+function closeOverlayClick(e) {
+  if (e.target.id === 'productOverlay') closeProductModal();
+}
+
+// ══════════════════════════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ══════════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════════
+function fmtPrice(n) { return 'Rp ' + (n/1000).toFixed(0) + 'K'; }
+function esc(s) { return s.replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ══════════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════════
+renderProducts();
+loadProfile();
+</script>
+</body>
+</html>

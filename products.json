@@ -1,0 +1,94 @@
+{
+  "store": {
+    "name": "umma.araaa",
+    "tagline": "Relatable lifestyle & daily life",
+    "whatsapp": "6281234567890",
+    "avatar": "",
+    "background": "",
+    "stats": {
+      "followers": "10K",
+      "rating": "4.9★",
+      "sold": "500+"
+    },
+    "socials": {
+      "instagram": "https://www.instagram.com/umma.araaa/",
+      "tiktok": "https://tiktok.com/umm_araaa",
+      "shopee": "https://shopee.co.id/umma.araaa",
+      "tokopedia": ""
+    }
+  },
+  "categories": [
+    {
+      "id": "lipstick",
+      "label": "Koleksi Lipstick"
+    }
+  ],
+  "products": [
+    {
+      "id": 1,
+      "name": "Velvet Red Matte",
+      "category": "lipstick",
+      "type": "Matte",
+      "price": 89000,
+      "emoji": "🔴",
+      "image": "",
+      "badge": "BESTSELLER",
+      "available": true
+    },
+    {
+      "id": 2,
+      "name": "Nude Rose Glam",
+      "category": "lipstick",
+      "type": "Glossy",
+      "price": 95000,
+      "emoji": "🌸",
+      "image": "",
+      "badge": "NEW",
+      "available": true
+    },
+    {
+      "id": 3,
+      "name": "Berry Wine",
+      "category": "lipstick",
+      "type": "Satin",
+      "price": 89000,
+      "emoji": "🍷",
+      "image": "",
+      "badge": "",
+      "available": true
+    },
+    {
+      "id": 4,
+      "name": "Peach Coral",
+      "category": "lipstick",
+      "type": "Cream",
+      "price": 85000,
+      "emoji": "🍑",
+      "image": "",
+      "badge": "",
+      "available": true
+    },
+    {
+      "id": 5,
+      "name": "Terracotta Earth",
+      "category": "lipstick",
+      "type": "Matte",
+      "price": 92000,
+      "emoji": "🤎",
+      "image": "",
+      "badge": "LIMITED",
+      "available": true
+    },
+    {
+      "id": 6,
+      "name": "Baby Doll Pinkx",
+      "category": "lipstick",
+      "type": "Glossy",
+      "price": 88000,
+      "emoji": "💗",
+      "image": "",
+      "badge": "",
+      "available": false
+    }
+  ]
+}
