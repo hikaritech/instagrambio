@@ -281,7 +281,16 @@
   <div class="footer-note" id="footerNote"></div>
 </div>
 
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
+// ── SUPABASE CONFIG ─────────────────────────────────────────────────────
+var supabaseClient = window.supabase.createClient(
+  'https://obkxabxykdznsejywxgt.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ia3hhYnh5a2R6bnNlanl3eGd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0ODk3NjksImV4cCI6MjA4NzA2NTc2OX0.23alhIEzhAS68t4AWLI6x3qFJ5yPn1Mh5CV5W6ctLBE'
+);
+
 // ── JSON DATA ─────────────────────────────────────────────────────────────
 const DEFAULT_DATA = {
   "store": {
@@ -308,15 +317,28 @@ const DEFAULT_DATA = {
   ]
 };
 
-// Load data dari localStorage (sama seperti admin.html)
-function loadData() {
+// Load data dari Supabase atau localStorage
+async function loadData() {
   try {
+    const { data, error } = await supabaseClient
+      .from('store_data')
+      .select('data')
+      .eq('id', 1)
+      .single();
+    
+    if (data && !error) {
+      localStorage.setItem('vgb_data', JSON.stringify(data.data));
+      return data.data;
+    }
     const raw = localStorage.getItem('vgb_data');
     return raw ? JSON.parse(raw) : DEFAULT_DATA;
-  } catch { return DEFAULT_DATA; }
+  } catch { 
+    const raw = localStorage.getItem('vgb_data');
+    return raw ? JSON.parse(raw) : DEFAULT_DATA; 
+  }
 }
 
-const DATA = loadData();
+let DATA;
 let searchMode = 'name';
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
@@ -497,8 +519,11 @@ function orderWA(p) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
-renderStore(DATA.store);
-renderProductsByCategory();
+loadData().then(data => {
+  DATA = data;
+  renderStore(DATA.store);
+  renderProductsByCategory();
+});
 </script>
 </body>
 </html>

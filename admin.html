@@ -548,7 +548,18 @@ body::before{
 <!-- TOAST -->
 <div class="toast" id="toast">✓ Tersimpan</div>
 
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
+// ══════════════════════════════════════════════════════════════
+// SUPABASE CONFIG
+// ══════════════════════════════════════════════════════════════
+var supabaseClient = window.supabase.createClient(
+  'https://obkxabxykdznsejywxgt.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ia3hhYnh5a2R6bnNlanl3eGd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0ODk3NjksImV4cCI6MjA4NzA2NTc2OX0.23alhIEzhAS68t4AWLI6x3qFJ5yPn1Mh5CV5W6ctLBE'
+);
+
 // ══════════════════════════════════════════════════════════════
 // DEFAULT DATA
 // ══════════════════════════════════════════════════════════════
@@ -576,20 +587,49 @@ const DEFAULT_DATA = {
 };
 
 // ══════════════════════════════════════════════════════════════
-// STATE (localStorage)
+// STATE (JSONBin.io + localStorage fallback)
 // ══════════════════════════════════════════════════════════════
-function loadData() {
+async function loadData() {
   try {
+    const { data, error } = await supabaseClient
+      .from('store_data')
+      .select('data')
+      .eq('id', 1)
+      .single();
+    
+    if (data && !error) {
+      localStorage.setItem('vgb_data', JSON.stringify(data.data));
+      return data.data;
+    }
     const raw = localStorage.getItem('vgb_data');
     return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_DATA));
-  } catch { return JSON.parse(JSON.stringify(DEFAULT_DATA)); }
+  } catch { 
+    const raw = localStorage.getItem('vgb_data');
+    return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_DATA)); 
+  }
 }
 
-function saveData(data) {
+async function saveData(data) {
   localStorage.setItem('vgb_data', JSON.stringify(data));
+  
+  try {
+    const { error } = await supabaseClient
+      .from('store_data')
+      .upsert({ id: 1, data: data });
+    
+    if (!error) {
+      showToast('✓ Data tersimpan ke cloud');
+    } else {
+      console.error('Supabase error:', error);
+      showToast('⚠️ Tersimpan lokal saja');
+    }
+  } catch (e) {
+    console.error('Supabase error:', e);
+    showToast('⚠️ Tersimpan lokal saja');
+  }
 }
 
-let DATA = loadData();
+let DATA = JSON.parse(JSON.stringify(DEFAULT_DATA));
 
 // ══════════════════════════════════════════════════════════════
 // TABS
@@ -911,8 +951,11 @@ function esc(s) { return s.replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 // ══════════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════════
-renderProducts();
-loadProfile();
+loadData().then(data => {
+  DATA = data;
+  renderProducts();
+  loadProfile();
+});
 </script>
 </body>
 </html>
