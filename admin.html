@@ -492,11 +492,6 @@ body::before{
       </div>
 
       <div class="field">
-        <label>Harga (Rp)</label>
-        <input type="number" id="f_price" placeholder="89000" min="0">
-      </div>
-
-      <div class="field">
         <label>Badge</label>
         <select id="f_badge">
           <option value="">— Tidak ada —</option>
@@ -666,8 +661,7 @@ function renderProducts() {
       <div class="prod-meta">
         <div class="prod-name">${esc(p.name)}</div>
         <div class="prod-detail">
-          <span>${p.type}</span>
-          <span>${fmtPrice(p.price)}</span>
+          <span>${p.type || p.category}</span>
           ${p.badge ? `<span class="badge-sm ${p.badge}">${p.badge}</span>` : ''}
           ${!p.available ? `<span class="badge-sm unavail">HABIS</span>` : ''}
         </div>
@@ -691,7 +685,6 @@ function openAddProduct() {
   document.getElementById('f_image').value = '';
   document.getElementById('f_image_data').value = '';
   document.getElementById('f_category').value = DATA.categories[0]?.id || 'lipstick';
-  document.getElementById('f_price').value = '';
   document.getElementById('f_badge').value = '';
   document.getElementById('f_link').value = '';
   document.getElementById('f_available').checked = true;
@@ -710,7 +703,6 @@ function openEditProduct(id) {
   document.getElementById('f_image').value = '';
   document.getElementById('f_image_data').value = p.image || '';
   document.getElementById('f_category').value = p.category;
-  document.getElementById('f_price').value = p.price;
   document.getElementById('f_badge').value = p.badge || '';
   document.getElementById('f_link').value = p.link || '';
   document.getElementById('f_available').checked = p.available;
@@ -726,9 +718,7 @@ function updateEmojiPreview() {
 
 function saveProduct() {
   const name = document.getElementById('f_name').value.trim();
-  const price = parseInt(document.getElementById('f_price').value);
   if (!name) { showToast('⚠️ Nama produk wajib diisi'); return; }
-  if (!price || price < 0) { showToast('⚠️ Harga tidak valid'); return; }
 
   const editId = document.getElementById('editId').value;
   const product = {
@@ -736,7 +726,7 @@ function saveProduct() {
     emoji: document.getElementById('f_emoji').value.trim() || '💄',
     image: document.getElementById('f_image_data').value.trim(),
     category: document.getElementById('f_category').value,
-    price,
+    price: 0,
     badge: document.getElementById('f_badge').value,
     link: document.getElementById('f_link').value.trim(),
     available: document.getElementById('f_available').checked

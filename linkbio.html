@@ -167,9 +167,9 @@
 
   .product-num {
     position: absolute; top: 10px; left: 10px;
-    background: var(--neutral-light); border: 1px solid var(--neutral-light);
+    background: rgba(26,14,8,0.95); border: 1px solid var(--gold);
     border-radius: 8px; padding: 3px 8px; font-size: 11px;
-    font-family: 'Playfair Display', serif; color: var(--neutral-deepest);
+    font-family: 'Playfair Display', serif; color: var(--neutral-light);
     z-index: 2; backdrop-filter: blur(4px);
     font-weight: 600;
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
@@ -281,16 +281,7 @@
   <div class="footer-note" id="footerNote"></div>
 </div>
 
-<!-- Supabase SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script>
-// ── SUPABASE CONFIG ─────────────────────────────────────────────────────
-var supabaseClient = window.supabase.createClient(
-  'https://obkxabxykdznsejywxgt.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ia3hhYnh5a2R6bnNlanl3eGd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0ODk3NjksImV4cCI6MjA4NzA2NTc2OX0.23alhIEzhAS68t4AWLI6x3qFJ5yPn1Mh5CV5W6ctLBE'
-);
-
 // ── JSON DATA ─────────────────────────────────────────────────────────────
 const DEFAULT_DATA = {
   "store": {
@@ -317,28 +308,15 @@ const DEFAULT_DATA = {
   ]
 };
 
-// Load data dari Supabase atau localStorage
-async function loadData() {
+// Load data dari localStorage (sama seperti admin.html)
+function loadData() {
   try {
-    const { data, error } = await supabaseClient
-      .from('store_data')
-      .select('data')
-      .eq('id', 1)
-      .single();
-    
-    if (data && !error) {
-      localStorage.setItem('vgb_data', JSON.stringify(data.data));
-      return data.data;
-    }
     const raw = localStorage.getItem('vgb_data');
     return raw ? JSON.parse(raw) : DEFAULT_DATA;
-  } catch { 
-    const raw = localStorage.getItem('vgb_data');
-    return raw ? JSON.parse(raw) : DEFAULT_DATA; 
-  }
+  } catch { return DEFAULT_DATA; }
 }
 
-let DATA;
+const DATA = loadData();
 let searchMode = 'name';
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
@@ -519,11 +497,8 @@ function orderWA(p) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
-loadData().then(data => {
-  DATA = data;
-  renderStore(DATA.store);
-  renderProductsByCategory();
-});
+renderStore(DATA.store);
+renderProductsByCategory();
 </script>
 </body>
 </html>
