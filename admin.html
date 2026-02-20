@@ -324,7 +324,19 @@ body::before{
 </head>
 <body>
 
-<div class="shell">
+<!-- PIN SCREEN -->
+<div id="pinScreen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:10000;display:flex;align-items:center;justify-content:center;">
+  <div style="text-align:center;max-width:320px;padding:32px;">
+    <div style="width:64px;height:64px;margin:0 auto 20px;background:linear-gradient(135deg,var(--brown-mid),var(--brown-warm));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;">🔒</div>
+    <div style="font-family:'Playfair Display',serif;font-size:20px;color:var(--cream);margin-bottom:8px;">Admin Panel</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:24px;letter-spacing:1px;">Masukkan PIN untuk melanjutkan</div>
+    <input type="password" id="pinInput" placeholder="• • • • • •" maxlength="6" style="width:100%;background:var(--card);border:1px solid var(--border-hi);border-radius:12px;padding:14px;color:var(--gold);font-size:18px;text-align:center;letter-spacing:8px;font-weight:600;outline:none;" autofocus>
+    <div id="pinError" style="color:var(--danger-lt);font-size:11px;margin-top:8px;min-height:16px;"></div>
+    <button onclick="verifyPin()" style="width:100%;margin-top:16px;background:var(--gold);color:#1a0e08;border:none;border-radius:12px;padding:14px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;">→ Masuk</button>
+  </div>
+</div>
+
+<div class="shell" id="mainContent" style="display:none;">
 
   <!-- TOPBAR -->
   <div class="topbar">
@@ -627,6 +639,45 @@ async function saveData(data) {
 
 let DATA = JSON.parse(JSON.stringify(DEFAULT_DATA));
 let activeCategory = 'all';
+const ADMIN_PIN = '161616';
+let isAuthenticated = false;
+
+// ══════════════════════════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════════════════════════
+function checkAuth() {
+  const saved = sessionStorage.getItem('admin_auth');
+  if (saved === ADMIN_PIN) {
+    document.getElementById('pinScreen').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+    return true;
+  }
+  
+  document.getElementById('pinScreen').style.display = 'flex';
+  document.getElementById('mainContent').style.display = 'none';
+  
+  document.getElementById('pinInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') verifyPin();
+  });
+  
+  return false;
+}
+
+function verifyPin() {
+  const pin = document.getElementById('pinInput').value;
+  const error = document.getElementById('pinError');
+  
+  if (pin === ADMIN_PIN) {
+    sessionStorage.setItem('admin_auth', pin);
+    document.getElementById('pinScreen').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+    initAdmin();
+  } else {
+    error.textContent = '❌ PIN salah, coba lagi';
+    document.getElementById('pinInput').value = '';
+    document.getElementById('pinInput').focus();
+  }
+}
 
 // ══════════════════════════════════════════════════════════════
 // TABS
@@ -977,14 +1028,18 @@ function hideLoader() {
   if (loader) loader.remove();
 }
 
-(async function() {
+(function() {
+  checkAuth();
+})();
+
+async function initAdmin() {
   showLoader();
   DATA = await loadData();
   renderCategoryFilter();
   renderProducts();
   loadProfile();
   hideLoader();
-})();
+}
 </script>
 </body>
 </html>
