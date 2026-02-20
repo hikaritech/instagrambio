@@ -73,12 +73,14 @@ body::before{
 .btn-preview:hover{background:rgba(201,169,110,0.2);}
 
 /* ── TABS ───────────────────────────────────── */
-.tabs{display:flex;gap:4px;margin-bottom:24px;background:var(--card);border-radius:14px;padding:4px;}
+.tabs{display:flex;gap:4px;margin-bottom:24px;background:var(--card);border-radius:14px;padding:4px;overflow-x:auto;overflow-y:hidden;}
+.tabs::-webkit-scrollbar{height:0;}
 .tab{
-  flex:1;padding:10px;border-radius:10px;border:none;
+  flex:0 0 auto;padding:10px;border-radius:10px;border:none;
   background:transparent;color:var(--muted);
   font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;
   cursor:pointer;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:6px;
+  white-space:nowrap;
 }
 .tab.active{background:var(--card2);color:var(--gold);box-shadow:0 2px 12px rgba(0,0,0,.3);}
 .tab:hover:not(.active){color:var(--text);}
@@ -306,6 +308,7 @@ body::before{
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
 @keyframes scaleIn{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 
 /* ── SCROLLBAR ───────────────────────────────── */
 ::-webkit-scrollbar{width:4px;}
@@ -354,6 +357,12 @@ body::before{
         <span class="sec-count" id="prodCount">0 item</span>
       </div>
       <button class="btn btn-gold" onclick="openAddProduct()">＋ Tambah</button>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <select id="categoryFilter" onchange="filterByCategory(this.value)" style="width:100%;background:var(--card);border:1px solid var(--border-hi);border-radius:10px;padding:10px 14px;color:var(--gold);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;">
+        <option value="all">Semua Kategori</option>
+      </select>
     </div>
 
     <div class="product-list" id="productList">
@@ -435,7 +444,6 @@ body::before{
     </div>
 
     <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px;">
-      <button class="btn btn-outline" onclick="loadProfile()">↺ Reset</button>
       <button class="btn btn-gold" onclick="saveProfile()">💾 Simpan Profile</button>
     </div>
 
@@ -592,39 +600,33 @@ async function loadData() {
       .eq('id', 1)
       .single();
     
-    if (data && !error) {
-      localStorage.setItem('vgb_data', JSON.stringify(data.data));
-      return data.data;
-    }
-    const raw = localStorage.getItem('vgb_data');
-    return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_DATA));
+    if (data && !error) return data.data;
+    return JSON.parse(JSON.stringify(DEFAULT_DATA));
   } catch { 
-    const raw = localStorage.getItem('vgb_data');
-    return raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(DEFAULT_DATA)); 
+    return JSON.parse(JSON.stringify(DEFAULT_DATA)); 
   }
 }
 
 async function saveData(data) {
-  localStorage.setItem('vgb_data', JSON.stringify(data));
-  
   try {
     const { error } = await supabaseClient
       .from('store_data')
       .upsert({ id: 1, data: data });
     
     if (!error) {
-      showToast('✓ Data tersimpan ke cloud');
+      showToast('✓ Data tersimpan');
     } else {
       console.error('Supabase error:', error);
-      showToast('⚠️ Tersimpan lokal saja');
+      showToast('⚠️ Gagal menyimpan');
     }
   } catch (e) {
     console.error('Supabase error:', e);
-    showToast('⚠️ Tersimpan lokal saja');
+    showToast('⚠️ Gagal menyimpan');
   }
 }
 
 let DATA = JSON.parse(JSON.stringify(DEFAULT_DATA));
+let activeCategory = 'all';
 
 // ══════════════════════════════════════════════════════════════
 // TABS
@@ -640,15 +642,37 @@ function switchTab(tab) {
 // ══════════════════════════════════════════════════════════════
 // PRODUCTS — RENDER
 // ══════════════════════════════════════════════════════════════
+function renderCategoryFilter() {
+  const select = document.getElementById('categoryFilter');
+  const allCount = DATA.products.length;
+  
+  let html = `<option value="all">Semua Kategori (${allCount})</option>`;
+  
+  DATA.categories.forEach(cat => {
+    const count = DATA.products.filter(p => p.category === cat.id).length;
+    html += `<option value="${cat.id}">${cat.label} (${count})</option>`;
+  });
+  
+  select.innerHTML = html;
+  select.value = activeCategory;
+}
+
+function filterByCategory(catId) {
+  activeCategory = catId;
+  renderProducts();
+}
+
 function renderProducts() {
   const list = document.getElementById('productList');
   const count = document.getElementById('prodCount');
-  const products = DATA.products;
+  const products = activeCategory === 'all' 
+    ? DATA.products 
+    : DATA.products.filter(p => p.category === activeCategory);
 
-  count.textContent = products.length + ' item';
+  count.textContent = DATA.products.length + ' item';
 
   if (!products.length) {
-    list.innerHTML = '<div class="empty-msg">Belum ada produk. Klik "Tambah" untuk mulai.</div>';
+    list.innerHTML = '<div class="empty-msg">Belum ada produk di kategori ini.</div>';
     return;
   }
 
@@ -661,7 +685,6 @@ function renderProducts() {
       <div class="prod-meta">
         <div class="prod-name">${esc(p.name)}</div>
         <div class="prod-detail">
-          <span>${p.type || p.category}</span>
           ${p.badge ? `<span class="badge-sm ${p.badge}">${p.badge}</span>` : ''}
           ${!p.available ? `<span class="badge-sm unavail">HABIS</span>` : ''}
         </div>
@@ -716,7 +739,7 @@ function updateEmojiPreview() {
   document.getElementById('emojiPreview').textContent = v || '💄';
 }
 
-function saveProduct() {
+async function saveProduct() {
   const name = document.getElementById('f_name').value.trim();
   if (!name) { showToast('⚠️ Nama produk wajib diisi'); return; }
 
@@ -740,7 +763,8 @@ function saveProduct() {
     DATA.products.push({ id: maxId + 1, ...product });
   }
 
-  saveData(DATA);
+  await saveData(DATA);
+  renderCategoryFilter();
   renderProducts();
   closeProductModal();
   showToast(editId ? '✓ Produk diperbarui' : '✓ Produk ditambahkan');
@@ -763,9 +787,10 @@ function openDeleteModal(id) {
   openOverlay('deleteOverlay');
 }
 
-function confirmDelete() {
+async function confirmDelete() {
   DATA.products = DATA.products.filter(p => p.id !== pendingDeleteId);
-  saveData(DATA);
+  await saveData(DATA);
+  renderCategoryFilter();
   renderProducts();
   closeDeleteModal();
   showToast('🗑️ Produk dihapus');
@@ -813,26 +838,27 @@ function renderCategories() {
   updateCategorySelects();
 }
 
-function addCategory() {
+async function addCategory() {
   const id = 'cat_' + Date.now();
   const label = prompt('Nama kategori baru:');
   if (!label || !label.trim()) return;
   DATA.categories.push({ id, label: label.trim() });
-  saveData(DATA);
+  await saveData(DATA);
   renderCategories();
+  renderCategoryFilter();
   showToast('✓ Kategori ditambahkan');
 }
 
-function updateCategory(id, newLabel) {
+async function updateCategory(id, newLabel) {
   const cat = DATA.categories.find(c => c.id === id);
   if (cat) {
     cat.label = newLabel.trim() || cat.label;
-    saveData(DATA);
+    await saveData(DATA);
     showToast('✓ Kategori diupdate');
   }
 }
 
-function deleteCategory(id) {
+async function deleteCategory(id) {
   if (DATA.categories.length <= 1) {
     showToast('⚠️ Minimal 1 kategori harus ada');
     return;
@@ -840,8 +866,9 @@ function deleteCategory(id) {
   if (!confirm('Hapus kategori ini?')) return;
   DATA.categories = DATA.categories.filter(c => c.id !== id);
   DATA.products.forEach(p => { if (p.category === id) p.category = DATA.categories[0].id; });
-  saveData(DATA);
+  await saveData(DATA);
   renderCategories();
+  renderCategoryFilter();
   renderProducts();
   showToast('🗑️ Kategori dihapus');
 }
@@ -855,9 +882,9 @@ function handleAvatarUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = () => {
+  reader.onload = async () => {
     DATA.store.avatar = reader.result;
-    saveData(DATA);
+    await saveData(DATA);
     loadProfile();
     showToast('✓ Avatar diupload');
   };
@@ -875,7 +902,7 @@ function handleProductImageUpload(e) {
   reader.readAsDataURL(file);
 }
 
-function saveProfile() {
+async function saveProfile() {
   DATA.store.name     = document.getElementById('p_name').value.trim() || 'Toko Saya';
   DATA.store.tagline  = document.getElementById('p_tagline').value.trim();
   DATA.store.whatsapp = document.getElementById('p_wa').value.trim();
@@ -885,7 +912,7 @@ function saveProfile() {
     shopee:    document.getElementById('p_shopee').value.trim()
   };
 
-  saveData(DATA);
+  await saveData(DATA);
   showToast('✓ Profile disimpan');
 }
 
@@ -941,11 +968,23 @@ function esc(s) { return s.replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 // ══════════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════════
-loadData().then(data => {
-  DATA = data;
+function showLoader() {
+  document.body.insertAdjacentHTML('beforeend', '<div id="loader" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;"><div style="text-align:center;"><div style="width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px;"></div><div style="color:var(--gold);font-size:12px;letter-spacing:1px;">Loading...</div></div></div>');
+}
+
+function hideLoader() {
+  const loader = document.getElementById('loader');
+  if (loader) loader.remove();
+}
+
+(async function() {
+  showLoader();
+  DATA = await loadData();
+  renderCategoryFilter();
   renderProducts();
   loadProfile();
-});
+  hideLoader();
+})();
 </script>
 </body>
 </html>

@@ -281,8 +281,17 @@
   <div class="footer-note" id="footerNote"></div>
 </div>
 
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
-// ── JSON DATA ─────────────────────────────────────────────────────────────
+// ── SUPABASE CONFIG ──────────────────────────────────────────────────────
+var supabaseClient = window.supabase.createClient(
+  'https://obkxabxykdznsejywxgt.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ia3hhYnh5a2R6bnNlanl3eGd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0ODk3NjksImV4cCI6MjA4NzA2NTc2OX0.23alhIEzhAS68t4AWLI6x3qFJ5yPn1Mh5CV5W6ctLBE'
+);
+
+// ── DEFAULT DATA ─────────────────────────────────────────────────────────────
 const DEFAULT_DATA = {
   "store": {
     "name": "Velvet Glow Beauty",
@@ -308,15 +317,23 @@ const DEFAULT_DATA = {
   ]
 };
 
-// Load data dari localStorage (sama seperti admin.html)
-function loadData() {
+// Load data dari Supabase
+async function loadData() {
   try {
-    const raw = localStorage.getItem('vgb_data');
-    return raw ? JSON.parse(raw) : DEFAULT_DATA;
-  } catch { return DEFAULT_DATA; }
+    const { data, error } = await supabaseClient
+      .from('store_data')
+      .select('data')
+      .eq('id', 1)
+      .single();
+    
+    if (data && !error) return data.data;
+    return DEFAULT_DATA;
+  } catch { 
+    return DEFAULT_DATA; 
+  }
 }
 
-const DATA = loadData();
+let DATA = DEFAULT_DATA;
 let searchMode = 'name';
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
@@ -497,8 +514,22 @@ function orderWA(p) {
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────
-renderStore(DATA.store);
-renderProductsByCategory();
+function showLoader() {
+  document.body.insertAdjacentHTML('beforeend', '<div id="loader" style="position:fixed;inset:0;background:#1a0e08;display:flex;align-items:center;justify-content:center;z-index:9999;"><div style="text-align:center;"><div style="width:40px;height:40px;border:3px solid rgba(201,169,110,0.2);border-top-color:#c9a96e;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px;"></div><div style="color:#c9a96e;font-size:12px;letter-spacing:1px;">Loading...</div></div></div>');
+}
+
+function hideLoader() {
+  const loader = document.getElementById('loader');
+  if (loader) loader.remove();
+}
+
+(async function() {
+  showLoader();
+  DATA = await loadData();
+  renderStore(DATA.store);
+  renderProductsByCategory();
+  hideLoader();
+})();
 </script>
 </body>
 </html>
