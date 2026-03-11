@@ -304,6 +304,10 @@ const DEFAULT_DATA = {
       "shopee": "https://shopee.co.id/velvetglowbeauty"
     }
   },
+  "analytics": {
+    "visits": [],
+    "productClicks": {}
+  },
   "categories": [
     { "id": "lipstick", "label": "Koleksi Lipstick" }
   ],
@@ -326,9 +330,25 @@ async function loadData() {
       .eq('id', 1)
       .single();
     
-    if (data && !error) return data.data;
+    if (data && !error) {
+      const loadedData = data.data;
+      // Ensure analytics exists
+      if (!loadedData.analytics) {
+        loadedData.analytics = { visits: [], productClicks: {} };
+      }
+      if (!loadedData.analytics.visits) {
+        loadedData.analytics.visits = [];
+      }
+      if (!loadedData.analytics.productClicks) {
+        loadedData.analytics.productClicks = {};
+      }
+      console.log('Data loaded from Supabase');
+      return loadedData;
+    }
+    console.log('No data found, using default');
     return DEFAULT_DATA;
-  } catch { 
+  } catch (e) {
+    console.error('Load error:', e);
     return DEFAULT_DATA; 
   }
 }
@@ -431,7 +451,10 @@ function renderCategoryProducts(categoryId, products) {
       </div>`;
 
     if (p.available && p.link) {
-      card.onclick = () => window.open(p.link, '_blank');
+      card.onclick = () => {
+        trackProductClick(p.id);
+        window.open(p.link, '_blank');
+      };
     } else if (p.available) {
       card.onclick = () => orderWA(p);
     }
@@ -506,7 +529,32 @@ function filterProducts() {
 }
 
 // ── ORDER VIA WA ──────────────────────────────────────────────────────────
+async function trackProductClick(productId) {
+  if (!DATA.analytics.productClicks) {
+    DATA.analytics.productClicks = {};
+  }
+  
+  if (!DATA.analytics.productClicks[productId]) {
+    DATA.analytics.productClicks[productId] = 0;
+  }
+  
+  DATA.analytics.productClicks[productId]++;
+  
+  console.log(`Product #${productId} clicked, total: ${DATA.analytics.productClicks[productId]}`);
+  
+  // Save to cloud
+  try {
+    await supabaseClient
+      .from('store_data')
+      .upsert({ id: 1, data: DATA }, { onConflict: 'id' });
+  } catch (e) {
+    console.error('Track click error:', e);
+  }
+}
+
 function orderWA(p) {
+  trackProductClick(p.id);
+  
   const msg = encodeURIComponent(
     `Halo! Saya mau order:\n\n💄 ${p.name}\n\nMohon konfirmasi stok ya 🙏`
   );
@@ -526,6 +574,37 @@ function hideLoader() {
 (async function() {
   showLoader();
   DATA = await loadData();
+  
+  // Ensure analytics exists
+  if (!DATA.analytics) {
+    DATA.analytics = { visits: [] };
+  }
+  if (!DATA.analytics.visits) {
+    DATA.analytics.visits = [];
+  }
+  
+  // Track visit
+  const timestamp = new Date().toISOString();
+  DATA.analytics.visits.push(timestamp);
+  
+  console.log('Tracking visit:', timestamp);
+  console.log('Total visits:', DATA.analytics.visits.length);
+  
+  // Save visit to cloud
+  try {
+    const { data: result, error } = await supabaseClient
+      .from('store_data')
+      .upsert({ id: 1, data: DATA }, { onConflict: 'id' });
+    
+    if (error) {
+      console.error('Supabase error:', error);
+    } else {
+      console.log('Visit tracked successfully');
+    }
+  } catch (e) {
+    console.error('Track error:', e);
+  }
+  
   renderStore(DATA.store);
   renderProductsByCategory();
   hideLoader();

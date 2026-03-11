@@ -355,6 +355,7 @@ body::before{
   <!-- TABS -->
   <div class="tabs">
     <button class="tab active" onclick="switchTab('products')">💄 Produk</button>
+    <button class="tab" onclick="switchTab('analytics')">📊 Analytics</button>
     <button class="tab" onclick="switchTab('profile')">🏪 Profile Toko</button>
   </div>
 
@@ -387,6 +388,38 @@ body::before{
         <button class="btn btn-outline btn-sm" onclick="copyJSON()">📋 Copy JSON</button>
         <button class="btn btn-outline btn-sm" onclick="downloadJSON()">💾 Download JSON</button>
       </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════
+       PANEL: ANALYTICS
+  ════════════════════════════════════════════ -->
+  <div class="panel" id="panel-analytics">
+
+    <div class="sec-header">
+      <span class="sec-title">Traffic Analytics</span>
+    </div>
+
+    <div class="profile-card">
+      <div class="profile-card-title">📈 Visitor Traffic (Last 7 Days)</div>
+      <canvas id="trafficChart" style="max-height:300px;"></canvas>
+    </div>
+
+    <div class="stats-grid" style="grid-template-columns:1fr 1fr;margin-top:16px;">
+      <div class="profile-card" style="text-align:center;">
+        <div style="font-size:32px;color:var(--gold);font-weight:600;" id="totalVisits">0</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;margin-top:4px;">Total Visits</div>
+      </div>
+      <div class="profile-card" style="text-align:center;">
+        <div style="font-size:32px;color:var(--gold);font-weight:600;" id="todayVisits">0</div>
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;margin-top:4px;">Today</div>
+      </div>
+    </div>
+
+    <div class="profile-card" style="margin-top:16px;">
+      <div class="profile-card-title">🔥 Top Products (Most Clicked)</div>
+      <div id="topProductsList"></div>
     </div>
 
   </div>
@@ -563,6 +596,9 @@ body::before{
 <!-- TOAST -->
 <div class="toast" id="toast">✓ Tersimpan</div>
 
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
 <!-- Supabase SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -590,6 +626,10 @@ const DEFAULT_DATA = {
       shopee: "https://shopee.co.id/velvetglowbeauty"
     }
   },
+  analytics: {
+    visits: [],
+    productClicks: {}
+  },
   categories: [{ id: "lipstick", label: "Koleksi Lipstick" }],
   products: [
     { id:1, name:"Velvet Red Matte",  category:"lipstick", price:89000, emoji:"🔴", image:"", badge:"BESTSELLER", available:true, link:""  },
@@ -612,9 +652,25 @@ async function loadData() {
       .eq('id', 1)
       .single();
     
-    if (data && !error) return data.data;
+    if (data && !error) {
+      const loadedData = data.data;
+      // Ensure analytics exists
+      if (!loadedData.analytics) {
+        loadedData.analytics = { visits: [], productClicks: {} };
+      }
+      if (!loadedData.analytics.visits) {
+        loadedData.analytics.visits = [];
+      }
+      if (!loadedData.analytics.productClicks) {
+        loadedData.analytics.productClicks = {};
+      }
+      console.log('Data loaded from Supabase:', loadedData);
+      return loadedData;
+    }
+    console.log('No data found, using default');
     return JSON.parse(JSON.stringify(DEFAULT_DATA));
-  } catch { 
+  } catch (e) {
+    console.error('Load error:', e);
     return JSON.parse(JSON.stringify(DEFAULT_DATA)); 
   }
 }
@@ -650,6 +706,7 @@ function checkAuth() {
   if (saved === ADMIN_PIN) {
     document.getElementById('pinScreen').style.display = 'none';
     document.getElementById('mainContent').style.display = 'block';
+    initAdmin();
     return true;
   }
   
@@ -684,10 +741,13 @@ function verifyPin() {
 // ══════════════════════════════════════════════════════════════
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach((t,i) => {
-    t.classList.toggle('active', (i===0 && tab==='products') || (i===1 && tab==='profile'));
+    t.classList.toggle('active', (i===0 && tab==='products') || (i===1 && tab==='analytics') || (i===2 && tab==='profile'));
   });
   document.getElementById('panel-products').classList.toggle('active', tab==='products');
+  document.getElementById('panel-analytics').classList.toggle('active', tab==='analytics');
   document.getElementById('panel-profile').classList.toggle('active', tab==='profile');
+  
+  if (tab === 'analytics') renderAnalytics();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -854,6 +914,139 @@ function closeDeleteModal() {
 
 function closeDeleteOverlayClick(e) {
   if (e.target.id === 'deleteOverlay') closeDeleteModal();
+}
+
+// ══════════════════════════════════════════════════════════════
+// ANALYTICS
+// ══════════════════════════════════════════════════════════════
+let trafficChart = null;
+
+function renderAnalytics() {
+  // Ensure analytics exists
+  if (!DATA.analytics) {
+    DATA.analytics = { visits: [], productClicks: {} };
+  }
+  if (!DATA.analytics.visits) {
+    DATA.analytics.visits = [];
+  }
+  if (!DATA.analytics.productClicks) {
+    DATA.analytics.productClicks = {};
+  }
+  
+  const visits = DATA.analytics.visits;
+  
+  console.log('Rendering analytics, total visits:', visits.length);
+  
+  const last7Days = [];
+  const today = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(today);
+    date.setDate(date.getDate() - i);
+    last7Days.push(date.toISOString().split('T')[0]);
+  }
+  
+  const visitCounts = last7Days.map(date => {
+    return visits.filter(v => v.startsWith(date)).length;
+  });
+  
+  const totalVisits = visits.length;
+  const todayDate = today.toISOString().split('T')[0];
+  const todayVisits = visits.filter(v => v.startsWith(todayDate)).length;
+  
+  document.getElementById('totalVisits').textContent = totalVisits;
+  document.getElementById('todayVisits').textContent = todayVisits;
+  
+  const ctx = document.getElementById('trafficChart');
+  if (trafficChart) trafficChart.destroy();
+  
+  trafficChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: last7Days.map(d => {
+        const date = new Date(d);
+        return date.toLocaleDateString('id-ID', { month: 'short', day: 'numeric' });
+      }),
+      datasets: [{
+        label: 'Visitors',
+        data: visitCounts,
+        borderColor: '#c9a96e',
+        backgroundColor: 'rgba(201,169,110,0.1)',
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: '#c9a96e',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { 
+            stepSize: 1,
+            color: '#8a6a54'
+          },
+          grid: { color: 'rgba(201,169,110,0.1)' }
+        },
+        x: {
+          ticks: { color: '#8a6a54' },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+  
+  // Render Top Products
+  renderTopProducts();
+}
+
+function renderTopProducts() {
+  const clicks = DATA.analytics.productClicks || {};
+  const list = document.getElementById('topProductsList');
+  
+  // Convert to array and sort by clicks
+  const sorted = Object.entries(clicks)
+    .map(([id, count]) => {
+      const product = DATA.products.find(p => p.id === parseInt(id));
+      return { id: parseInt(id), count, product };
+    })
+    .filter(item => item.product)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+  
+  if (sorted.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:12px;font-style:italic;">Belum ada produk yang diklik</div>';
+    return;
+  }
+  
+  const totalClicks = sorted.reduce((sum, item) => sum + item.count, 0);
+  
+  list.innerHTML = sorted.map((item, index) => {
+    const percentage = totalClicks > 0 ? (item.count / totalClicks * 100).toFixed(1) : 0;
+    const thumb = item.product.image 
+      ? `<img src="${item.product.image}" style="width:100%;height:100%;object-fit:cover;">` 
+      : item.product.emoji;
+    
+    return `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="font-size:14px;color:var(--gold);font-weight:600;width:24px;text-align:center;">#${index + 1}</div>
+        <div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--brown-mid),var(--brown-warm));display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden;flex-shrink:0;">${thumb}</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:13px;color:var(--cream);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(item.product.name)}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px;">${item.count} clicks • ${percentage}%</div>
+        </div>
+        <div style="width:60px;height:6px;background:rgba(201,169,110,0.1);border-radius:3px;overflow:hidden;">
+          <div style="width:${percentage}%;height:100%;background:var(--gold);border-radius:3px;"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1035,6 +1228,23 @@ function hideLoader() {
 async function initAdmin() {
   showLoader();
   DATA = await loadData();
+  
+  // Ensure analytics exists
+  if (!DATA.analytics) {
+    DATA.analytics = { visits: [], productClicks: {} };
+    console.log('Analytics field created');
+  }
+  if (!DATA.analytics.visits) {
+    DATA.analytics.visits = [];
+    console.log('Visits array created');
+  }
+  if (!DATA.analytics.productClicks) {
+    DATA.analytics.productClicks = {};
+    console.log('ProductClicks object created');
+  }
+  
+  console.log('Admin loaded, total visits:', DATA.analytics.visits.length);
+  
   renderCategoryFilter();
   renderProducts();
   loadProfile();
