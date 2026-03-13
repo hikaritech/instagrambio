@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invoice Viewer</title>
+<style>
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;max-width:800px;margin:0 auto;padding:0;color:#333;background:#fff;}
+.invoice-container{padding:40px;}
+.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:40px;padding-bottom:20px;border-bottom:3px solid #c9a96e;}
+.company-info h1{color:#c9a96e;margin:0 0 8px 0;font-size:28px;font-weight:700;}
+.company-info p{margin:2px 0;color:#666;font-size:14px;}
+.invoice-info{text-align:right;}
+.invoice-info h2{color:#333;margin:0 0 8px 0;font-size:24px;font-weight:600;}
+.invoice-info .invoice-number{font-size:18px;color:#c9a96e;font-weight:600;margin-bottom:4px;}
+.invoice-info .invoice-date{color:#666;font-size:14px;}
+.billing-section{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-bottom:40px;}
+.billing-box{background:#f8f9fa;padding:20px;border-radius:8px;border-left:4px solid #c9a96e;}
+.billing-box h3{margin:0 0 12px 0;color:#333;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;}
+.billing-box p{margin:4px 0;color:#555;font-size:14px;line-height:1.4;}
+.qr-section{text-align:center;}
+.qr-code{width:120px;height:120px;margin:0 auto 8px;border:2px solid #e9ecef;border-radius:8px;}
+.qr-label{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:0.5px;}
+table{width:100%;border-collapse:collapse;margin-bottom:30px;box-shadow:0 2px 8px rgba(0,0,0,0.1);border-radius:8px;overflow:hidden;}
+th{background:#c9a96e;color:#fff;padding:15px 12px;text-align:left;font-weight:600;font-size:13px;text-transform:uppercase;letter-spacing:0.5px;}
+td{padding:12px;border-bottom:1px solid #e9ecef;font-size:14px;}
+tr:last-child td{border-bottom:none;}
+tr:nth-child(even){background:#f8f9fa;}
+.amount-col{text-align:right;font-weight:500;}
+.summary{background:#f8f9fa;padding:25px;border-radius:8px;margin-bottom:30px;}
+.summary-row{display:flex;justify-content:space-between;margin-bottom:8px;font-size:14px;}
+.summary-row.total{font-size:18px;font-weight:700;color:#c9a96e;border-top:2px solid #c9a96e;padding-top:12px;margin-top:12px;}
+.notes-section{background:#fff3cd;border:1px solid #ffeaa7;border-radius:8px;padding:20px;margin-bottom:30px;}
+.notes-section h4{margin:0 0 10px 0;color:#856404;font-size:14px;font-weight:600;}
+.notes-section p{margin:0;color:#856404;font-size:14px;line-height:1.5;}
+.footer{display:flex;justify-content:space-between;align-items:center;padding-top:30px;border-top:2px solid #e9ecef;color:#666;font-size:12px;line-height:1.6;}
+.footer-text{flex:1;}
+.footer-qr{text-align:center;}
+.footer-qr .qr-code{width:80px;height:80px;margin:0 auto 4px;}
+.footer-qr .qr-label{font-size:10px;color:#666;}
+.footer strong{color:#c9a96e;}
+.download-btn{position:fixed;top:20px;right:20px;background:#c9a96e;color:#fff;border:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:9999;transition:all 0.3s;}
+.download-btn:hover{background:#b8956a;transform:translateY(-2px);}
+.error-msg{text-align:center;padding:60px 20px;color:#666;}
+.error-msg h2{color:#c9a96e;margin-bottom:16px;}
+@media print{body{margin:0;}.invoice-container{padding:20px;}.download-btn{display:none;}}
+@media (max-width:768px){.billing-section{grid-template-columns:1fr;gap:20px;}.footer{flex-direction:column;gap:20px;text-align:center;}}
+</style>
+</head>
+<body>
+
+<div id="invoiceContent"></div>
+<div id="errorContent" class="error-msg" style="display:none;">
+  <h2>Invoice Not Found</h2>
+  <p>The requested invoice could not be found or has expired.</p>
+</div>
+
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- QRCode Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<!-- html2canvas Library -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+
+<script>
+// Get UUID from URL query parameter
+const urlParams = new URLSearchParams(window.location.search);
+const invoiceUuid = urlParams.get('uuid');
+
+// Store data for template
+let STORE_DATA = null;
+let INVOICE_DATA = null;
+
+function fmtRupiah(n) {
+  return 'Rp ' + n.toLocaleString('id-ID');
+}
+
+function esc(s) {
+  return s.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function generateInvoiceHTML(inv, store) {
+  return `
+<div class="invoice-container">
+<div class="header">
+<div class="company-info">
+<h1>${store.name}</h1>
+<p>${store.tagline}</p>
+<p>WhatsApp: ${store.whatsapp}</p>
+</div>
+<div class="invoice-info">
+<h2>INVOICE</h2>
+<div class="invoice-number">${inv.invoice_number}</div>
+<div class="invoice-date">${new Date(inv.created_at).toLocaleDateString('id-ID', {year:'numeric',month:'long',day:'numeric'})}</div>
+</div>
+</div>
+<div class="billing-section">
+<div class="billing-box">
+<h3>Bill To</h3>
+<p><strong>${esc(inv.customer_name)}</strong></p>
+<p>${inv.customer_phone || ''}</p>
+<p>${esc(inv.customer_address) || ''}</p>
+</div>
+<div class="billing-box">
+<h3>Payment Info</h3>
+<p><strong>Method:</strong> ${inv.payment_method || '-'}</p>
+<p><strong>Status:</strong> ${inv.payment_status === 'paid' ? 'Lunas' : inv.payment_status === 'pending' ? 'Pending' : 'Batal'}</p>
+${inv.payment_details ? `<p style="margin-top:8px;font-size:12px;color:#666;">${esc(inv.payment_details)}</p>` : ''}
+</div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Item Description</th>
+<th style="text-align:center;width:80px;">Qty</th>
+<th style="text-align:right;width:120px;">Unit Price</th>
+<th style="text-align:right;width:120px;">Amount</th>
+</tr>
+</thead>
+<tbody>
+${inv.items.map(item => `
+<tr>
+<td>${esc(item.name)}</td>
+<td style="text-align:center;">${item.quantity}</td>
+<td class="amount-col">${fmtRupiah(item.price)}</td>
+<td class="amount-col">${fmtRupiah(item.price * item.quantity)}</td>
+</tr>
+`).join('')}
+</tbody>
+</table>
+<div class="summary">
+<div class="summary-row">
+<span>Subtotal:</span>
+<span>${fmtRupiah(inv.subtotal)}</span>
+</div>
+<div class="summary-row">
+<span>Discount:</span>
+<span>-${fmtRupiah(inv.discount)}</span>
+</div>
+<div class="summary-row">
+<span>Tax:</span>
+<span>${fmtRupiah(inv.tax)}</span>
+</div>
+<div class="summary-row total">
+<span>TOTAL:</span>
+<span>${fmtRupiah(inv.total)}</span>
+</div>
+</div>
+${inv.notes ? `<div class="notes-section"><h4>Additional Notes</h4><p>${esc(inv.notes)}</p></div>` : ''}
+<div class="footer">
+<div class="footer-text">
+<p><strong>Thank you for your business!</strong></p>
+<p>${store.name} • ${store.whatsapp}</p>
+<p>Invoice generated on ${new Date().toLocaleDateString('id-ID')}</p>
+</div>
+<div class="footer-qr">
+<div class="qr-code" id="qrcode"></div>
+<div class="qr-label">${inv.invoice_uuid}</div>
+</div>
+</div>
+</div>
+<button class="download-btn" onclick="downloadAsImage()">📥 Download as Image</button>
+  `;
+}
+
+function downloadAsImage() {
+  const btn = document.querySelector('.download-btn');
+  btn.style.display = 'none';
+  
+  html2canvas(document.body, {
+    backgroundColor: '#ffffff',
+    scale: 2,
+    logging: false,
+    useCORS: true
+  }).then(canvas => {
+    btn.style.display = 'block';
+    
+    canvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${INVOICE_DATA.invoice_number}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  });
+}
+
+// Load invoice data
+async function loadInvoice() {
+  try {
+    // Initialize Supabase client
+    const supabaseClient = window.supabase.createClient(
+      'https://obkxabxykdznsejywxgt.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ia3hhYnh5a2R6bnNlanl3eGd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0ODk3NjksImV4cCI6MjA4NzA2NTc2OX0.23alhIEzhAS68t4AWLI6x3qFJ5yPn1Mh5CV5W6ctLBE'
+    );
+    
+    // Load invoice from database using UUID
+    const { data: invoiceData, error: invoiceError } = await supabaseClient
+      .from('invoices')
+      .select('*')
+      .eq('invoice_uuid', invoiceUuid)
+      .single();
+    
+    if (invoiceError || !invoiceData) {
+      console.error('Invoice not found:', invoiceError);
+      document.getElementById('errorContent').style.display = 'block';
+      return;
+    }
+    
+    INVOICE_DATA = invoiceData;
+    
+    // Get store data from Supabase
+    const { data: storeData } = await supabaseClient
+      .from('store_data')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+    
+    STORE_DATA = storeData?.data?.store || {
+      name: "Velvet Glow Beauty",
+      tagline: "Authentic Luxury Cosmetics", 
+      whatsapp: "6281234567890"
+    };
+    
+    // Update page title
+    document.title = INVOICE_DATA.invoice_number + ' - Invoice';
+    
+    // Render invoice
+    document.getElementById('invoiceContent').innerHTML = generateInvoiceHTML(INVOICE_DATA, STORE_DATA);
+    
+    // Generate QR code after a short delay to ensure DOM is ready
+    setTimeout(() => {
+      const qrElement = document.getElementById('qrcode');
+      if (qrElement && typeof QRCode !== 'undefined') {
+        qrElement.innerHTML = '';
+        new QRCode(qrElement, {
+          text: window.location.href,
+          width: 80,
+          height: 80,
+          colorDark: '#c9a96e',
+          colorLight: '#ffffff',
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      } else {
+        console.error('QRCode library not loaded or element not found');
+      }
+    }, 300);
+    
+  } catch (e) {
+    console.error('Load invoice error:', e);
+    document.getElementById('errorContent').style.display = 'block';
+  }
+}
+
+// Initialize
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', loadInvoice);
+} else {
+  loadInvoice();
+}
+</script>
+
+</body>
+</html>

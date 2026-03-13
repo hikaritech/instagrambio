@@ -2,6 +2,7 @@
 CREATE TABLE invoices (
   id SERIAL PRIMARY KEY,
   invoice_number VARCHAR(50) UNIQUE NOT NULL,
+  invoice_uuid VARCHAR(100) UNIQUE NOT NULL,
   customer_name VARCHAR(255) NOT NULL,
   customer_phone VARCHAR(50),
   customer_address TEXT,
@@ -12,6 +13,7 @@ CREATE TABLE invoices (
   total DECIMAL(12,2) NOT NULL,
   payment_status VARCHAR(20) DEFAULT 'pending',
   payment_method VARCHAR(50),
+  payment_details TEXT,
   notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -21,6 +23,7 @@ CREATE TABLE invoices (
 CREATE INDEX idx_invoices_created_at ON invoices(created_at DESC);
 CREATE INDEX idx_invoices_payment_status ON invoices(payment_status);
 CREATE INDEX idx_invoices_invoice_number ON invoices(invoice_number);
+CREATE INDEX idx_invoices_invoice_uuid ON invoices(invoice_uuid);
 
 -- Trigger untuk update updated_at otomatis
 CREATE OR REPLACE FUNCTION update_updated_at_column()
