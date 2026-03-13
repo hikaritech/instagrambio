@@ -304,10 +304,6 @@ const DEFAULT_DATA = {
       "shopee": "https://shopee.co.id/velvetglowbeauty"
     }
   },
-  "analytics": {
-    "visits": [],
-    "productClicks": {}
-  },
   "categories": [
     { "id": "lipstick", "label": "Koleksi Lipstick" }
   ],
@@ -326,22 +322,13 @@ async function loadData() {
   try {
     const { data, error } = await supabaseClient
       .from('store_data')
-      .select('data')
-      .eq('id', 1)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1)
       .single();
     
     if (data && !error) {
       const loadedData = data.data;
-      // Ensure analytics exists
-      if (!loadedData.analytics) {
-        loadedData.analytics = { visits: [], productClicks: {} };
-      }
-      if (!loadedData.analytics.visits) {
-        loadedData.analytics.visits = [];
-      }
-      if (!loadedData.analytics.productClicks) {
-        loadedData.analytics.productClicks = {};
-      }
       console.log('Data loaded from Supabase');
       return loadedData;
     }
@@ -530,23 +517,16 @@ function filterProducts() {
 
 // ── ORDER VIA WA ──────────────────────────────────────────────────────────
 async function trackProductClick(productId) {
-  if (!DATA.analytics.productClicks) {
-    DATA.analytics.productClicks = {};
-  }
+  console.log(`Product #${productId} clicked`);
   
-  if (!DATA.analytics.productClicks[productId]) {
-    DATA.analytics.productClicks[productId] = 0;
-  }
-  
-  DATA.analytics.productClicks[productId]++;
-  
-  console.log(`Product #${productId} clicked, total: ${DATA.analytics.productClicks[productId]}`);
-  
-  // Save to cloud
   try {
     await supabaseClient
-      .from('store_data')
-      .upsert({ id: 1, data: DATA }, { onConflict: 'id' });
+      .from('product_clicks')
+      .insert({ 
+        product_id: productId,
+        click_timestamp: new Date().toISOString()
+      });
+    console.log('Product click tracked');
   } catch (e) {
     console.error('Track click error:', e);
   }
@@ -575,34 +555,19 @@ function hideLoader() {
   showLoader();
   DATA = await loadData();
   
-  // Ensure analytics exists
-  if (!DATA.analytics) {
-    DATA.analytics = { visits: [] };
-  }
-  if (!DATA.analytics.visits) {
-    DATA.analytics.visits = [];
-  }
-  
   // Track visit
   const timestamp = new Date().toISOString();
-  DATA.analytics.visits.push(timestamp);
-  
   console.log('Tracking visit:', timestamp);
-  console.log('Total visits:', DATA.analytics.visits.length);
   
-  // Save visit to cloud
   try {
-    const { data: result, error } = await supabaseClient
-      .from('store_data')
-      .upsert({ id: 1, data: DATA }, { onConflict: 'id' });
-    
-    if (error) {
-      console.error('Supabase error:', error);
-    } else {
-      console.log('Visit tracked successfully');
-    }
+    await supabaseClient
+      .from('visitor_traffic')
+      .insert({ 
+        visit_timestamp: timestamp
+      });
+    console.log('Visit tracked successfully');
   } catch (e) {
-    console.error('Track error:', e);
+    console.error('Track visit error:', e);
   }
   
   renderStore(DATA.store);
