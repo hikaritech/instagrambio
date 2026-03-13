@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=800, initial-scale=1.0, user-scalable=yes">
 <title>Invoice Viewer</title>
 <style>
 body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;max-width:800px;margin:0 auto;padding:0;color:#333;background:#fff;}
@@ -36,7 +36,7 @@ tr:nth-child(even){background:#f8f9fa;}
 .footer{display:flex;justify-content:space-between;align-items:center;padding-top:30px;border-top:2px solid #e9ecef;color:#666;font-size:12px;line-height:1.6;}
 .footer-text{flex:1;}
 .footer-qr{text-align:center;}
-.footer-qr .qr-code{width:80px;height:80px;margin:0 auto 4px;}
+.footer-qr .qr-code{width:100px;height:100px;margin:0 auto 4px;}
 .footer-qr .qr-label{font-size:10px;color:#666;}
 .footer strong{color:#c9a96e;}
 .download-btn{position:fixed;top:20px;right:20px;background:#c9a96e;color:#fff;border:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:9999;transition:all 0.3s;}
@@ -44,7 +44,7 @@ tr:nth-child(even){background:#f8f9fa;}
 .error-msg{text-align:center;padding:60px 20px;color:#666;}
 .error-msg h2{color:#c9a96e;margin-bottom:16px;}
 @media print{body{margin:0;}.invoice-container{padding:20px;}.download-btn{display:none;}}
-@media (max-width:768px){.billing-section{grid-template-columns:1fr;gap:20px;}.footer{flex-direction:column;gap:20px;text-align:center;}}
+@media (max-width:768px){.download-btn{top:10px;right:10px;padding:10px 16px;font-size:12px;}}
 </style>
 </head>
 <body>
@@ -239,8 +239,8 @@ async function loadInvoice() {
         qrElement.innerHTML = '';
         new QRCode(qrElement, {
           text: window.location.href,
-          width: 80,
-          height: 80,
+          width: 100,
+          height: 100,
           colorDark: '#c9a96e',
           colorLight: '#ffffff',
           correctLevel: QRCode.CorrectLevel.M
