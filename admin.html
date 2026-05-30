@@ -776,17 +776,13 @@ body::before{
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 
-<!-- Supabase SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script>
 // ══════════════════════════════════════════════════════════════
-// SUPABASE CONFIG
+// MYSQL CONFIG - Using PHP API endpoints
 // ══════════════════════════════════════════════════════════════
-var supabaseClient = window.supabase.createClient(
-  'https://obkxabxykdznsejywxgt.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ia3hhYnh5a2R6bnNlanl3eGd0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0ODk3NjksImV4cCI6MjA4NzA2NTc2OX0.23alhIEzhAS68t4AWLI6x3qFJ5yPn1Mh5CV5W6ctLBE'
-);
+
+// API Base URL
+const API_BASE = window.location.pathname.includes('admin.html') ? './api/' : 'api/';
 
 // ══════════════════════════════════════════════════════════════
 // DEFAULT DATA
@@ -810,30 +806,26 @@ const DEFAULT_DATA = {
     { id:3, name:"Berry Wine",        category:"lipstick", price:89000, emoji:"🍷", image:"", badge:"",           available:true, link:""  },
     { id:4, name:"Peach Coral",       category:"lipstick", price:85000, emoji:"🍑", image:"", badge:"",           available:true, link:""  },
     { id:5, name:"Terracotta Earth",  category:"lipstick", price:92000, emoji:"🤎", image:"", badge:"LIMITED",    available:true, link:""  },
-    { id:6, name:"Baby Doll Pink",    category:"lipstick", price:88000, emoji:"💗", image:"", badge:"",           available:false, link:"" }
+    { id:6, name:"Baby Doll Pink",    category:"lipstick", price:88000, emoji:"💗", image:"", badge:"",           available:false, link:""  }
   ]
 };
 
 // ══════════════════════════════════════════════════════════════
-// STATE (JSONBin.io + localStorage fallback)
+// STATE
 // ══════════════════════════════════════════════════════════════
 async function loadData() {
   try {
-    const { data, error } = await supabaseClient
-      .from('store_data')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
+    const response = await fetch(API_BASE + 'load-data.php');
+    const data = await response.json();
     
-    if (data && !error) {
-      const loadedData = data.data;
-      console.log('Data loaded from Supabase:', loadedData);
-      return loadedData;
+    if(data && Object.keys(data).length > 0){
+      console.log('Data loaded from MySQL:', data);
+      return data;
     }
+    
     console.log('No data found, using default');
     return JSON.parse(JSON.stringify(DEFAULT_DATA));
-  } catch (e) {
+  } catch(e) {
     console.error('Load error:', e);
     return JSON.parse(JSON.stringify(DEFAULT_DATA)); 
   }
@@ -841,23 +833,74 @@ async function loadData() {
 
 async function saveData(data) {
   try {
-    const { error } = await supabaseClient
-      .from('store_data')
-      .insert({ 
-        id: Math.floor(Date.now() / 1000),
-        data: data,
-        created_at: new Date().toISOString()
-      });
+    const response = await fetch(API_BASE + 'save-data.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ data: data })
+    });
     
-    if (!error) {
+    const result = await response.json();
+    
+    if(result.success) {
       showToast('✓ Data tersimpan');
     } else {
-      console.error('Supabase error:', error);
+      console.error('Save error:', result.message);
       showToast('⚠️ Gagal menyimpan');
     }
-  } catch (e) {
-    console.error('Supabase error:', e);
+  } catch(e) {
+    console.error('Save error:', e);
     showToast('⚠️ Gagal menyimpan');
+  }
+}
+
+// Track functions
+async function trackProductClick(productId) {
+  try {
+    await fetch(API_BASE + 'track-click.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        product_id: productId
+      })
+    });
+  } catch(e) {
+    console.error('Track click error:', e);
+  }
+}
+
+async function trackVisit() {
+  try {
+    await fetch(API_BASE + 'track-visit.php', {
+      method: 'POST'
+    });
+  } catch(e) {
+    console.error('Track visit error:', e);
+  }
+}
+
+async function getVisits(startDate, endDate) {
+  try {
+    const response = await fetch(`${API_BASE}get-visits.php?start=${startDate}&end=${endDate}`);
+    const data = await response.json();
+    return data.success ? data.data : [];
+  } catch(e) {
+    console.error('Get visits error:', e);
+    return [];
+  }
+}
+
+async function getProductClicks() {
+  try {
+    const response = await fetch(API_BASE + 'get-clicks.php');
+    const data = await response.json();
+    return data.success ? data.data : [];
+  } catch(e) {
+    console.error('Get clicks error:', e);
+    return [];
   }
 }
 
@@ -1107,13 +1150,7 @@ async function renderAnalytics() {
     const filterStartDate = startInput.value;
     const filterEndDate = endInput.value;
     
-    const { data: visits, error } = await supabaseClient
-      .from('visitor_traffic')
-      .select('visit_timestamp')
-      .gte('visit_timestamp', filterStartDate + 'T00:00:00')
-      .lte('visit_timestamp', filterEndDate + 'T23:59:59');
-    
-    if (error) throw error;
+    const visits = await getVisits(filterStartDate, filterEndDate);
     
     const visitTimestamps = visits || [];
     console.log('Rendering analytics, total visits:', visitTimestamps.length);
@@ -1127,12 +1164,12 @@ async function renderAnalytics() {
     }
     
     const visitCounts = dateRange.map(date => {
-      return visitTimestamps.filter(v => v.visit_timestamp.startsWith(date)).length;
+      return visitTimestamps.filter(v => v.visit_timestamp && v.visit_timestamp.startsWith(date)).length;
     });
     
     const totalVisits = visitTimestamps.length;
     const todayDate = new Date().toISOString().split('T')[0];
-    const todayVisits = visitTimestamps.filter(v => v.visit_timestamp.startsWith(todayDate)).length;
+    const todayVisits = visitTimestamps.filter(v => v.visit_timestamp && v.visit_timestamp.startsWith(todayDate)).length;
   
     document.getElementById('totalVisits').textContent = totalVisits;
     document.getElementById('todayVisits').textContent = todayVisits;
@@ -1192,11 +1229,7 @@ async function renderAnalytics() {
 
 async function renderTopProducts() {
   try {
-    const { data: clicks, error } = await supabaseClient
-      .from('product_clicks')
-      .select('product_id');
-    
-    if (error) throw error;
+    const clicks = await getProductClicks();
     
     const list = document.getElementById('topProductsList');
     
@@ -1264,16 +1297,7 @@ async function renderInvoiceAnalytics() {
     const filterStartDate = startInput.value;
     const filterEndDate = endInput.value;
     
-    const { data, error } = await supabaseClient
-      .from('invoices')
-      .select('*')
-      .gte('created_at', filterStartDate + 'T00:00:00')
-      .lte('created_at', filterEndDate + 'T23:59:59')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    
-    const invoices = data || [];
+    const invoices = await getInvoices(filterStartDate, filterEndDate);
     
     // Generate date range
     const dateRange = [];
@@ -1303,11 +1327,11 @@ async function renderInvoiceAnalytics() {
     
     const totalPendingAmount = invoices
       .filter(inv => inv.payment_status === 'pending')
-      .reduce((sum, inv) => sum + inv.total, 0);
+      .reduce((sum, inv) => sum + (inv.total || 0), 0);
     
     const totalPaidAmount = invoices
       .filter(inv => inv.payment_status === 'paid')
-      .reduce((sum, inv) => sum + inv.total, 0);
+      .reduce((sum, inv) => sum + (inv.total || 0), 0);
     
     document.getElementById('totalInvoices').textContent = totalInvoices;
     document.getElementById('paidInvoices').textContent = paidInvoices;
@@ -1544,16 +1568,61 @@ function showToast(msg) {
 // ══════════════════════════════════════════════════════════════
 let invoiceItems = [];
 
+async function getInvoices(startDate, endDate) {
+  try {
+    let url = API_BASE + 'get-invoices.php';
+    if (startDate && endDate) {
+      url += `?start=${startDate}&end=${endDate}`;
+    }
+    const response = await fetch(url);
+    const data = await response.json();
+    return data.success ? data.data : [];
+  } catch(e) {
+    console.error('Get invoices error:', e);
+    return [];
+  }
+}
+
+async function saveInvoiceToDB(invoice) {
+  try {
+    const response = await fetch(API_BASE + 'save-invoice.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(invoice)
+    });
+    
+    const result = await response.json();
+    return result;
+  } catch(e) {
+    console.error('Save invoice error:', e);
+    return { success: false };
+  }
+}
+
+async function updateInvoiceStatusDB(id, status) {
+  try {
+    const response = await fetch(API_BASE + 'update-invoice.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ id, payment_status: status })
+    });
+    
+    const result = await response.json();
+    return result;
+  } catch(e) {
+    console.error('Update invoice error:', e);
+    return { success: false };
+  }
+}
+
 async function loadInvoices() {
   try {
-    const { data, error } = await supabaseClient
-      .from('invoices')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) throw error;
-    
-    renderInvoiceList(data || []);
+    const invoices = await getInvoices();
+    renderInvoiceList(invoices);
   } catch (e) {
     console.error('Load invoices error:', e);
     showToast('⚠️ Gagal load invoice');
@@ -1721,31 +1790,27 @@ async function saveInvoice() {
     notes: document.getElementById('inv_notes').value.trim()
   };
   
-  try {
-    const { error } = await supabaseClient
-      .from('invoices')
-      .insert(invoice);
-    
-    if (error) throw error;
-    
+  const result = await saveInvoiceToDB(invoice);
+  
+  if (result.success) {
     showToast('✓ Invoice berhasil dibuat');
     closeInvoiceModal();
     loadInvoices();
-  } catch (e) {
-    console.error('Save invoice error:', e);
+  } else {
+    console.error('Save invoice error:', result.message);
     showToast('⚠️ Gagal menyimpan invoice');
   }
 }
 
 async function openInvoiceDetail(id) {
   try {
-    const { data, error } = await supabaseClient
-      .from('invoices')
-      .select('*')
-      .eq('id', id)
-      .single();
+    const invoices = await getInvoices();
+    const invoice = invoices.find(inv => inv.id === id);
     
-    if (error) throw error;
+    if (!invoice) {
+      showToast('⚠️ Invoice tidak ditemukan');
+      return;
+    }
     
     const statusColors = {
       pending: 'var(--muted)',
@@ -1758,30 +1823,36 @@ async function openInvoiceDetail(id) {
       cancelled: 'Batal'
     };
     
+    // Parse items if stored as JSON string
+    let items = invoice.items;
+    if (typeof items === 'string') {
+      items = JSON.parse(items);
+    }
+    
     const content = document.getElementById('invoiceDetailContent');
     content.innerHTML = `
       <div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">
-        <div style="font-size:18px;color:var(--gold);font-weight:600;margin-bottom:12px;">${data.invoice_number}</div>
+        <div style="font-size:18px;color:var(--gold);font-weight:600;margin-bottom:12px;">${invoice.invoice_number}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;">
-          <div><span style="color:var(--muted);">Customer:</span><br><span style="color:var(--text);">${esc(data.customer_name)}</span></div>
-          <div><span style="color:var(--muted);">Telepon:</span><br><span style="color:var(--text);">${data.customer_phone || '-'}</span></div>
-          <div style="grid-column:span 2;"><span style="color:var(--muted);">Alamat:</span><br><span style="color:var(--text);">${esc(data.customer_address) || '-'}</span></div>
-          <div><span style="color:var(--muted);">Metode:</span><br><span style="color:var(--text);">${data.payment_method || '-'}</span></div>
-          <div><span style="color:var(--muted);">Tanggal:</span><br><span style="color:var(--text);">${new Date(data.created_at).toLocaleDateString('id-ID')}</span></div>
-          ${data.payment_details ? `<div style="grid-column:span 2;"><span style="color:var(--muted);">Detail Pembayaran:</span><br><span style="color:var(--text);">${esc(data.payment_details)}</span></div>` : ''}
+          <div><span style="color:var(--muted);">Customer:</span><br><span style="color:var(--text);">${esc(invoice.customer_name)}</span></div>
+          <div><span style="color:var(--muted);">Telepon:</span><br><span style="color:var(--text);">${invoice.customer_phone || '-'}</span></div>
+          <div style="grid-column:span 2;"><span style="color:var(--muted);">Alamat:</span><br><span style="color:var(--text);">${esc(invoice.customer_address) || '-'}</span></div>
+          <div><span style="color:var(--muted);">Metode:</span><br><span style="color:var(--text);">${invoice.payment_method || '-'}</span></div>
+          <div><span style="color:var(--muted);">Tanggal:</span><br><span style="color:var(--text);">${new Date(invoice.created_at).toLocaleDateString('id-ID')}</span></div>
+          ${invoice.payment_details ? `<div style="grid-column:span 2;"><span style="color:var(--muted);">Detail Pembayaran:</span><br><span style="color:var(--text);">${esc(invoice.payment_details)}</span></div>` : ''}
         </div>
       </div>
       
       <div style="margin-bottom:16px;">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px;">Link Invoice</div>
         <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12px;color:var(--text);word-break:break-all;">
-          ${window.location.origin}${window.location.pathname.replace('admin.html', '')}invoice.html?uuid=${data.invoice_uuid}
+          ${window.location.origin}${window.location.pathname.replace('admin.html', '')}invoice.html?uuid=${invoice.invoice_uuid}
         </div>
       </div>
       
       <div style="margin-bottom:16px;">
         <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px;">Item Produk</div>
-        ${data.items.map(item => `
+        ${items.map(item => `
           <div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
             <div>
               <div style="font-size:13px;color:var(--text);">${esc(item.name)}</div>
@@ -1795,36 +1866,36 @@ async function openInvoiceDetail(id) {
       <div style="background:var(--card2);border:1px solid var(--border-hi);border-radius:12px;padding:16px;margin-bottom:16px;">
         <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px;">
           <span style="color:var(--muted);">Subtotal:</span>
-          <span style="color:var(--text);">${fmtRupiah(data.subtotal)}</span>
+          <span style="color:var(--text);">${fmtRupiah(invoice.subtotal)}</span>
         </div>
         <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px;">
           <span style="color:var(--muted);">Diskon:</span>
-          <span style="color:var(--text);">${fmtRupiah(data.discount)}</span>
+          <span style="color:var(--text);">${fmtRupiah(invoice.discount)}</span>
         </div>
         <div style="display:flex;justify-content:space-between;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);font-size:12px;">
           <span style="color:var(--muted);">Pajak:</span>
-          <span style="color:var(--text);">${fmtRupiah(data.tax)}</span>
+          <span style="color:var(--text);">${fmtRupiah(invoice.tax)}</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:16px;">
           <span style="color:var(--gold);font-weight:600;">Total:</span>
-          <span style="color:var(--gold);font-weight:600;">${fmtRupiah(data.total)}</span>
+          <span style="color:var(--gold);font-weight:600;">${fmtRupiah(invoice.total)}</span>
         </div>
       </div>
       
-      ${data.notes ? `<div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--muted);"><strong>Catatan:</strong><br>${esc(data.notes)}</div>` : ''}
+      ${invoice.notes ? `<div style="background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--muted);"><strong>Catatan:</strong><br>${esc(invoice.notes)}</div>` : ''}
       
       <div style="margin-bottom:16px;">
         <label style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px;display:block;">Status Pembayaran</label>
-        <select id="inv_status_${data.id}" style="width:100%;background:var(--bg2);border:1px solid var(--border-hi);border-radius:10px;padding:10px 14px;color:var(--text);font-size:13px;">
-          <option value="pending" ${data.payment_status === 'pending' ? 'selected' : ''}>Pending</option>
-          <option value="paid" ${data.payment_status === 'paid' ? 'selected' : ''}>Lunas</option>
-          <option value="cancelled" ${data.payment_status === 'cancelled' ? 'selected' : ''}>Batal</option>
+        <select id="inv_status_${invoice.id}" style="width:100%;background:var(--bg2);border:1px solid var(--border-hi);border-radius:10px;padding:10px 14px;color:var(--text);font-size:13px;">
+          <option value="pending" ${invoice.payment_status === 'pending' ? 'selected' : ''}>Pending</option>
+          <option value="paid" ${invoice.payment_status === 'paid' ? 'selected' : ''}>Lunas</option>
+          <option value="cancelled" ${invoice.payment_status === 'cancelled' ? 'selected' : ''}>Batal</option>
         </select>
       </div>
       
       <div style="display:flex;gap:10px;">
-        <button class="btn btn-gold" onclick="updateInvoiceStatus(${data.id})">💾 Update Status</button>
-        <button class="btn btn-outline" onclick="exportInvoicePDF(${data.id})">🖼️ Export Image</button>
+        <button class="btn btn-gold" onclick="updateInvoiceStatus(${invoice.id})">💾 Update Status</button>
+        <button class="btn btn-outline" onclick="exportInvoicePDF(${invoice.id})">🖼️ Export Image</button>
       </div>
     `;
     
@@ -1838,36 +1909,31 @@ async function openInvoiceDetail(id) {
 async function updateInvoiceStatus(id) {
   const newStatus = document.getElementById(`inv_status_${id}`).value;
   
-  try {
-    const { error } = await supabaseClient
-      .from('invoices')
-      .update({ payment_status: newStatus })
-      .eq('id', id);
-    
-    if (error) throw error;
-    
+  const result = await updateInvoiceStatusDB(id, newStatus);
+  
+  if (result.success) {
     showToast('✓ Status diupdate');
     closeInvoiceDetailModal();
     loadInvoices();
-  } catch (e) {
-    console.error('Update status error:', e);
+  } else {
+    console.error('Update status error:', result.message);
     showToast('⚠️ Gagal update status');
   }
 }
 
 async function exportInvoicePDF(id) {
   try {
-    const { data, error } = await supabaseClient
-      .from('invoices')
-      .select('invoice_uuid')
-      .eq('id', id)
-      .single();
+    const invoices = await getInvoices();
+    const invoice = invoices.find(inv => inv.id === id);
     
-    if (error) throw error;
+    if (!invoice) {
+      showToast('⚠️ Invoice tidak ditemukan');
+      return;
+    }
     
     // Open invoice using query parameter
     const baseUrl = window.location.origin + window.location.pathname.replace('admin.html', '');
-    const invoiceUrl = baseUrl + 'invoice.html?uuid=' + data.invoice_uuid;
+    const invoiceUrl = baseUrl + 'invoice.html?uuid=' + invoice.invoice_uuid;
     window.open(invoiceUrl, '_blank');
     
     showToast('📄 Invoice dibuka di tab baru');
@@ -1875,16 +1941,6 @@ async function exportInvoicePDF(id) {
     console.error('Export error:', e);
     showToast('⚠️ Gagal export');
   }
-}
-
-function downloadInvoiceAsImage(win, invoiceNumber) {
-  // This function is no longer used, kept for compatibility
-}
-
-function generateInvoiceHTML(inv) {
-  // This function is no longer used in admin.html
-  // Invoice HTML is now generated in invoice.html
-  return '';
 }
 
 function closeInvoiceModal() {
@@ -1910,8 +1966,10 @@ function fmtRupiah(n) {
 // ══════════════════════════════════════════════════════════════
 // UTILS
 // ══════════════════════════════════════════════════════════════
-function fmtPrice(n) { return 'Rp ' + (n/1000).toFixed(0) + 'K'; }
-function esc(s) { return s.replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s) { 
+  if (!s) return '';
+  return s.replace(/</g,'&lt;').replace(/>/g,'&gt;'); 
+}
 
 // ══════════════════════════════════════════════════════════════
 // INIT
